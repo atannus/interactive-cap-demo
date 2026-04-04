@@ -10,10 +10,35 @@ function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v))
 }
 
-function PositionBox({ lang, title }: { lang: 'ts' | 'py'; title: string }) {
+function useDebounced<T extends unknown[]>(fn: (...args: T) => void, ms: number) {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  return useCallback((...args: T) => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => fn(...args), ms)
+  }, [fn, ms])
+}
+
+interface PositionBoxProps {
+  lang: 'ts' | 'py'
+  title: string
+  boxId: string
+  apiBase: string
+}
+
+function PositionBox({ lang, title, boxId, apiBase }: PositionBoxProps) {
   const [pos, setPos] = useState<Position>({ x: 0, y: 0 })
   const canvasRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
+
+  const persist = useCallback(async (p: Position) => {
+    await fetch(`${apiBase}/position/${boxId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(p),
+    })
+  }, [apiBase, boxId])
+
+  const persistDebounced = useDebounced(persist, 80)
 
   const toNormalized = useCallback((clientX: number, clientY: number): Position => {
     const rect = canvasRef.current!.getBoundingClientRect()
@@ -28,7 +53,9 @@ function PositionBox({ lang, title }: { lang: 'ts' | 'py'; title: string }) {
 
     const onMove = (e: MouseEvent) => {
       if (!dragging.current) return
-      setPos(toNormalized(e.clientX, e.clientY))
+      const p = toNormalized(e.clientX, e.clientY)
+      setPos(p)
+      persistDebounced(p)
     }
     const onUp = () => {
       dragging.current = false
@@ -37,9 +64,8 @@ function PositionBox({ lang, title }: { lang: 'ts' | 'py'; title: string }) {
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
-  }, [toNormalized])
+  }, [toNormalized, persistDebounced])
 
-  // Map -1..1 to CSS percentage (0%..100%)
   const left = `${(pos.x + 1) / 2 * 100}%`
   const top  = `${(pos.y + 1) / 2 * 100}%`
 
@@ -78,8 +104,8 @@ export default function App() {
         </nav>
       </header>
       <main className="main">
-        <PositionBox lang="ts" title="NestJS" />
-        <PositionBox lang="py" title="FastAPI" />
+        <PositionBox lang="ts" title="NestJS" boxId="ts" apiBase="http://localhost:3001" />
+        <PositionBox lang="py" title="FastAPI" boxId="py" apiBase="http://localhost:8000" />
       </main>
     </div>
   )

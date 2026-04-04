@@ -2,11 +2,13 @@
   "name": "edu-over-engineering",
   "private": true,
   "scripts": {
+    "dev": "concurrently -n fe,ts -c cyan,blue \"pnpm dev:frontend\" \"pnpm dev:backend-ts\"",
     "dev:frontend": "pnpm --filter frontend dev",
-    "dev:backend-ts": "pnpm --filter backend-ts dev",
+    "dev:backend-ts": "pnpm --filter backend-ts start:dev",
     "dev:backend-py": "cd apps/backend-py && uvicorn main:app --reload"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "typescript": "^5.4.5"
   }
 }
