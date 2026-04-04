@@ -1,0 +1,12 @@
+{
+  "name": "edu-over-engineering",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "pnpm --filter frontend dev",
+    "dev:backend-ts": "pnpm --filter backend-ts dev",
+    "dev:backend-py": "cd apps/backend-py && uvicorn main:app --reload"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}
