@@ -107,7 +107,59 @@ nav a.active {
   color: var(--text);
 }
 
+.box-coords {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  margin-left: auto;
+  opacity: 0.6;
+}
+
 .box-canvas {
   flex: 1;
   position: relative;
+  cursor: crosshair;
+}
+
+.crosshair-h,
+.crosshair-v {
+  position: absolute;
+  background: var(--border);
+  pointer-events: none;
+}
+
+.crosshair-h {
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  transform: translateY(-50%);
+}
+
+.crosshair-v {
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  transform: translateX(-50%);
+}
+
+.marker {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--text);
+  transform: translate(-50%, -50%);
+  cursor: grab;
+  transition: background 0.15s, transform 0.05s;
+}
+
+.marker:hover {
+  background: var(--text-bright);
+}
+
+.marker:active {
+  cursor: grabbing;
+  transform: translate(-50%, -50%) scale(1.15);
 }
