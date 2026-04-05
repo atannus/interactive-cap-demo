@@ -2,7 +2,7 @@
   "name": "edu-over-engineering",
   "private": true,
   "scripts": {
-    "dev": "concurrently -n fe,ts -c cyan,blue \"pnpm dev:frontend\" \"pnpm dev:backend-ts\"",
+    "dev": "concurrently -n fe,ts,py -c cyan,blue,yellow \"pnpm dev:frontend\" \"pnpm dev:backend-ts\" \"pnpm dev:backend-py\"",
     "dev:frontend": "pnpm --filter frontend dev",
     "dev:backend-ts": "pnpm --filter backend-ts start:dev",
     "dev:backend-py": "cd apps/backend-py && uvicorn main:app --reload"

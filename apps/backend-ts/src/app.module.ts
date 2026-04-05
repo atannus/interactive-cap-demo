@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Position } from './position/position.entity';
 import { PositionModule } from './position/position.module';
+import { RedisProvider } from './redis.provider';
 
 @Module({
   imports: [
@@ -22,5 +23,7 @@ import { PositionModule } from './position/position.module';
     }),
     PositionModule,
   ],
+  providers: [RedisProvider],
+  exports: [RedisProvider],
 })
 export class AppModule {}

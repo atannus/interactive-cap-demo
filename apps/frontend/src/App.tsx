@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import './App.css'
 
 interface Position {
@@ -18,25 +18,20 @@ function useDebounced<T extends unknown[]>(fn: (...args: T) => void, ms: number)
   }, [fn, ms])
 }
 
-interface PositionBoxProps {
-  lang: 'ts' | 'py'
-  title: string
-  boxId: string
-  apiBase: string
-}
+// ── TS box: draggable, writes to NestJS REST ──────────────────────────────────
 
-function PositionBox({ lang, title, boxId, apiBase }: PositionBoxProps) {
+function TsBox() {
   const [pos, setPos] = useState<Position>({ x: 0, y: 0 })
   const canvasRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
 
   const persist = useCallback(async (p: Position) => {
-    await fetch(`${apiBase}/position/${boxId}`, {
+    await fetch('http://localhost:3001/position/ts', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(p),
     })
-  }, [apiBase, boxId])
+  }, [])
 
   const persistDebounced = useDebounced(persist, 80)
 
@@ -50,7 +45,6 @@ function PositionBox({ lang, title, boxId, apiBase }: PositionBoxProps) {
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     dragging.current = true
-
     const onMove = (e: MouseEvent) => {
       if (!dragging.current) return
       const p = toNormalized(e.clientX, e.clientY)
@@ -72,40 +66,67 @@ function PositionBox({ lang, title, boxId, apiBase }: PositionBoxProps) {
   return (
     <div className="position-box">
       <div className="box-header">
-        <span className={`box-badge ${lang}`}>{lang === 'ts' ? 'TypeScript' : 'Python'}</span>
-        <span className="box-title">{title}</span>
-        <span className="box-coords">
-          {pos.x.toFixed(3)}, {pos.y.toFixed(3)}
-        </span>
+        <span className="box-badge ts">TypeScript</span>
+        <span className="box-title">NestJS</span>
+        <span className="box-coords">{pos.x.toFixed(3)}, {pos.y.toFixed(3)}</span>
       </div>
       <div className="box-canvas" ref={canvasRef}>
         <div className="crosshair-h" />
         <div className="crosshair-v" />
-        <div
-          className="marker"
-          style={{ left, top }}
-          onMouseDown={onMouseDown}
-        />
+        <div className="marker" style={{ left, top }} onMouseDown={onMouseDown} />
       </div>
     </div>
   )
 }
 
+// ── Python box: read-only, driven by FastAPI WebSocket ────────────────────────
+
+function PyBox() {
+  const [pos, setPos] = useState<Position>({ x: 0, y: 0 })
+
+  useEffect(() => {
+    const ws = new WebSocket('ws://localhost:8000/ws')
+    ws.onmessage = (e) => {
+      const data = JSON.parse(e.data) as { x: number; y: number }
+      setPos({ x: data.x, y: data.y })
+    }
+    return () => ws.close()
+  }, [])
+
+  const left = `${(pos.x + 1) / 2 * 100}%`
+  const top  = `${(pos.y + 1) / 2 * 100}%`
+
+  return (
+    <div className="position-box">
+      <div className="box-header">
+        <span className="box-badge py">Python</span>
+        <span className="box-title">FastAPI</span>
+        <span className="box-coords">{pos.x.toFixed(3)}, {pos.y.toFixed(3)}</span>
+      </div>
+      <div className="box-canvas">
+        <div className="crosshair-h" />
+        <div className="crosshair-v" />
+        <div className="marker passive" style={{ left, top }} />
+      </div>
+    </div>
+  )
+}
+
+// ── App ───────────────────────────────────────────────────────────────────────
+
 export default function App() {
   return (
     <div className="layout">
       <header className="header">
-        <div className="logo">
-          Over<span>·</span>Engineering
-        </div>
+        <div className="logo">Over<span>·</span>Engineering</div>
         <nav>
           <a href="#" className="active">App</a>
           <a href="#">About</a>
         </nav>
       </header>
       <main className="main">
-        <PositionBox lang="ts" title="NestJS" boxId="ts" apiBase="http://localhost:3001" />
-        <PositionBox lang="py" title="FastAPI" boxId="py" apiBase="http://localhost:8000" />
+        <TsBox />
+        <PyBox />
       </main>
     </div>
   )
