@@ -38,7 +38,7 @@ function PositionBox({ label, badge, wsUrl, restUrl }: BoxProps) {
     })
   }, [restUrl])
 
-  const persistDebounced = useDebounced(persist, 80)
+  const persistDebounced = useDebounced(persist, 10)
 
   const toNormalized = useCallback((clientX: number, clientY: number): Position => {
     const rect = canvasRef.current!.getBoundingClientRect()
