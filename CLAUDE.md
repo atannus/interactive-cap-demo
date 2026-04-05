@@ -73,17 +73,12 @@ Frontend (React/Vite :5173)
 Images are built directly into minikube's docker daemon — no registry needed. All resources live in the `edu-oe` namespace.
 
 ```bash
-minikube start
 make build          # eval $(minikube docker-env) + docker build for all three images
 make deploy         # kubectl apply namespace first, then all k8s/ manifests
-minikube tunnel     # separate terminal — exposes LoadBalancer IPs as localhost
-```
-
-Then open `http://localhost` (frontend), backends at `:3001` and `:8000`.
-
-```bash
 make teardown       # kubectl delete -f k8s/
 ```
+
+After changing code, rebuild the image and rollout restart the affected deployment(s) — `kubectl apply` alone won't redeploy because the `:latest` tag and spec don't change.
 
 **Gotchas:**
 - `make deploy` applies `k8s/namespace.yaml` explicitly before `k8s/` to avoid ordering failures (`kubectl apply -f k8s/` is alphabetical — backend manifests come before namespace).
@@ -105,14 +100,14 @@ DB credentials flow: `postgres-secret` holds `POSTGRES_USER/PASSWORD/DB`; backen
 
 ## Observability (Prometheus + Grafana + Loki)
 
-Deployed into a separate `monitoring` namespace via Helm, independently of the app namespace.
+Deployed into a separate `monitoring` namespace via Helm.
 
 ```bash
 make observe          # add Helm repos, install kube-prometheus-stack + loki-stack, apply ServiceMonitors + dashboard
 make observe-teardown # uninstall Helm releases + delete monitoring k8s resources
 ```
 
-Helm values live in `k8s/helm/`. Grafana is exposed as a LoadBalancer on port 3000 — `minikube tunnel` must be running. Login: `admin` / `admin`.
+Helm values live in `k8s/helm/`.
 
 **Metrics exposed:**
 - Both backends expose `GET /metrics` (Prometheus text format)
