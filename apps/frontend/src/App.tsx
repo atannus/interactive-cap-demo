@@ -18,20 +18,25 @@ function useDebounced<T extends unknown[]>(fn: (...args: T) => void, ms: number)
   }, [fn, ms])
 }
 
-// ── TS box: draggable, writes to NestJS REST ──────────────────────────────────
+interface BoxProps {
+  label: string
+  badge: string
+  wsUrl: string
+  restUrl: string
+}
 
-function TsBox() {
-  const [pos, setPos] = useState<Position>({ x: 0, y: 0 })
+function PositionBox({ label, badge, wsUrl, restUrl }: BoxProps) {
+  const [pos, setPos] = useState<Position | null>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
 
   const persist = useCallback(async (p: Position) => {
-    await fetch('http://localhost:3001/position/ts', {
+    await fetch(restUrl, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(p),
     })
-  }, [])
+  }, [restUrl])
 
   const persistDebounced = useDebounced(persist, 80)
 
@@ -60,53 +65,37 @@ function TsBox() {
     window.addEventListener('mouseup', onUp)
   }, [toNormalized, persistDebounced])
 
-  const left = `${(pos.x + 1) / 2 * 100}%`
-  const top  = `${(pos.y + 1) / 2 * 100}%`
-
-  return (
-    <div className="position-box">
-      <div className="box-header">
-        <span className="box-badge ts">TypeScript</span>
-        <span className="box-title">NestJS</span>
-        <span className="box-coords">{pos.x.toFixed(3)}, {pos.y.toFixed(3)}</span>
-      </div>
-      <div className="box-canvas" ref={canvasRef}>
-        <div className="crosshair-h" />
-        <div className="crosshair-v" />
-        <div className="marker" style={{ left, top }} onMouseDown={onMouseDown} />
-      </div>
-    </div>
-  )
-}
-
-// ── Python box: read-only, driven by FastAPI WebSocket ────────────────────────
-
-function PyBox() {
-  const [pos, setPos] = useState<Position>({ x: 0, y: 0 })
+  useEffect(() => {
+    fetch(restUrl)
+      .then(r => r.json())
+      .then(d => { if (d) setPos({ x: d.x, y: d.y }) })
+      .catch(() => setPos({ x: 0, y: 0 }))
+  }, [restUrl])
 
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8000/ws')
+    const ws = new WebSocket(wsUrl)
     ws.onmessage = (e) => {
+      if (dragging.current) return
       const data = JSON.parse(e.data) as { x: number; y: number }
       setPos({ x: data.x, y: data.y })
     }
     return () => ws.close()
-  }, [])
+  }, [wsUrl])
 
-  const left = `${(pos.x + 1) / 2 * 100}%`
-  const top  = `${(pos.y + 1) / 2 * 100}%`
+  const left = pos ? `${(pos.x + 1) / 2 * 100}%` : '50%'
+  const top  = pos ? `${(pos.y + 1) / 2 * 100}%` : '50%'
 
   return (
     <div className="position-box">
       <div className="box-header">
-        <span className="box-badge py">Python</span>
-        <span className="box-title">FastAPI</span>
-        <span className="box-coords">{pos.x.toFixed(3)}, {pos.y.toFixed(3)}</span>
+        <span className={`box-badge ${badge}`}>{label}</span>
+        <span className="box-title">{label === 'TypeScript' ? 'NestJS' : 'FastAPI'}</span>
+        <span className="box-coords">{pos ? `${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}` : '…'}</span>
       </div>
-      <div className="box-canvas">
+      <div className="box-canvas" ref={canvasRef}>
         <div className="crosshair-h" />
         <div className="crosshair-v" />
-        <div className="marker passive" style={{ left, top }} />
+        {pos && <div className={`marker ${badge}`} style={{ left, top }} onMouseDown={onMouseDown} />}
       </div>
     </div>
   )
@@ -125,8 +114,18 @@ export default function App() {
         </nav>
       </header>
       <main className="main">
-        <TsBox />
-        <PyBox />
+        <PositionBox
+          label="TypeScript"
+          badge="ts"
+          wsUrl="ws://localhost:3001/ws"
+          restUrl="http://localhost:3001/position/ts"
+        />
+        <PositionBox
+          label="Python"
+          badge="py"
+          wsUrl="ws://localhost:8000/ws"
+          restUrl="http://localhost:8000/position/ts"
+        />
       </main>
     </div>
   )

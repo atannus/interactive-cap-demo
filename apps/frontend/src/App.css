@@ -155,22 +155,19 @@ nav a.active {
   transition: background 0.15s, transform 0.05s;
 }
 
+.marker.ts {
+  background: var(--accent-ts);
+}
+
+.marker.py {
+  background: var(--accent-py);
+}
+
 .marker:hover {
-  background: var(--text-bright);
+  filter: brightness(1.2);
 }
 
 .marker:active {
   cursor: grabbing;
   transform: translate(-50%, -50%) scale(1.15);
-}
-
-.marker.passive {
-  cursor: default;
-  background: var(--accent-py);
-  opacity: 0.7;
-  transition: left 0.05s, top 0.05s, background 0.15s;
-}
-
-.marker.passive:hover {
-  background: var(--accent-py);
 }

@@ -5,7 +5,7 @@
     "dev": "concurrently -n fe,ts,py -c cyan,blue,yellow \"pnpm dev:frontend\" \"pnpm dev:backend-ts\" \"pnpm dev:backend-py\"",
     "dev:frontend": "pnpm --filter frontend dev",
     "dev:backend-ts": "pnpm --filter backend-ts start:dev",
-    "dev:backend-py": "cd apps/backend-py && uvicorn main:app --reload"
+    "dev:backend-py": "cd apps/backend-py && .venv/bin/uvicorn main:app --reload"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
