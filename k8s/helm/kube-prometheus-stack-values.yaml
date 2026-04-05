@@ -1,0 +1,35 @@
+alertmanager:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    serviceMonitorNamespaceSelector: {}   # all namespaces — CRITICAL, empty {} = all
+    serviceMonitorSelector: {}            # all ServiceMonitors regardless of labels
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits: { memory: 512Mi }
+    retention: 6h
+    storageSpec: {}                       # ephemeral; no PVC needed on minikube
+
+grafana:
+  service:
+    type: LoadBalancer
+    port: 3000
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL               # picks up ConfigMaps in edu-oe namespace
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 256Mi }
+  adminPassword: "admin"
+
+kube-state-metrics:
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+
+prometheus-node-exporter:
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }

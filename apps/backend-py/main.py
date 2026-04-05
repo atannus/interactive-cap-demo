@@ -7,6 +7,8 @@ from datetime import datetime
 import redis.asyncio as aioredis
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import Counter, Gauge
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 from sqlalchemy import Column, Float, String, DateTime, text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -42,6 +44,10 @@ class PositionRow(Base):
 # Connected WebSocket clients
 clients: set[WebSocket] = set()
 
+ws_connections_active = Gauge("ws_connections_active", "Active WebSocket connections")
+redis_messages_published_total = Counter("redis_messages_published_total", "Redis messages published")
+redis_messages_received_total = Counter("redis_messages_received_total", "Redis messages received")
+
 
 async def redis_subscriber():
     r = aioredis.Redis(host=REDIS_HOST, port=REDIS_PORT)
@@ -50,6 +56,7 @@ async def redis_subscriber():
     async for message in pubsub.listen():
         if message["type"] != "message":
             continue
+        redis_messages_received_total.inc()
         data = message["data"]
         if isinstance(data, bytes):
             data = data.decode()
@@ -76,6 +83,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+Instrumentator().instrument(app).expose(app)
 
 
 class PositionBody(BaseModel):
@@ -117,6 +125,7 @@ async def update_position(box_id: str, body: PositionBody):
     payload = {"box_id": box_id, "x": body.x, "y": body.y, "updated_at": now.isoformat()}
     r = aioredis.Redis(host=REDIS_HOST, port=REDIS_PORT)
     await r.publish(POSITION_CHANNEL, json.dumps(payload))
+    redis_messages_published_total.inc()
     await r.aclose()
     return payload
 
@@ -125,8 +134,12 @@ async def update_position(box_id: str, body: PositionBody):
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
     clients.add(ws)
+    ws_connections_active.inc()
     try:
         while True:
             await ws.receive_text()  # keep connection alive
     except WebSocketDisconnect:
+        pass
+    finally:
         clients.discard(ws)
+        ws_connections_active.dec()

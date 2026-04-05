@@ -7,7 +7,8 @@ RUN uv pip install --system \
     "asyncpg>=0.29.0" \
     "redis>=5.0.4" \
     "sqlalchemy[asyncio]>=2.0.30" \
-    "pydantic-settings>=2.2.1"
+    "pydantic-settings>=2.2.1" \
+    "prometheus-fastapi-instrumentator>=6.4.0"
 COPY main.py .
 EXPOSE 8000
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

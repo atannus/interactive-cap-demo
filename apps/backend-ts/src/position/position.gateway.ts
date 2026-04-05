@@ -6,6 +6,7 @@ import type { Duplex } from 'stream';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from '../redis.provider';
 import { POSITION_CHANNEL } from './position.service';
+import { MetricsService } from '../metrics/metrics.service';
 
 @Injectable()
 export class PositionGateway implements OnModuleInit, OnModuleDestroy {
@@ -15,6 +16,7 @@ export class PositionGateway implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly config: ConfigService,
+    private readonly metrics: MetricsService,
   ) {}
 
   onModuleInit() {
@@ -25,6 +27,7 @@ export class PositionGateway implements OnModuleInit, OnModuleDestroy {
 
     this.subscriber.subscribe(POSITION_CHANNEL);
     this.subscriber.on('message', (_channel: string, message: string) => {
+      this.metrics.redisReceivedTotal.inc();
       this.wss.clients.forEach((client) => {
         if (client.readyState === client.OPEN) {
           client.send(message);
@@ -40,6 +43,8 @@ export class PositionGateway implements OnModuleInit, OnModuleDestroy {
 
   handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer) {
     this.wss.handleUpgrade(req, socket, head, (ws) => {
+      this.metrics.wsConnectionsActive.inc();
+      ws.on('close', () => this.metrics.wsConnectionsActive.dec());
       this.wss.emit('connection', ws, req);
     });
   }

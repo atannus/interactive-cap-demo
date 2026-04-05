@@ -98,12 +98,40 @@ make teardown       # kubectl delete -f k8s/
 - `k8s/backend-ts.yaml` — ConfigMap + Deployment + LoadBalancer :3001
 - `k8s/backend-py.yaml` — ConfigMap + Deployment + LoadBalancer :8000
 - `k8s/frontend.yaml` — Deployment + LoadBalancer :80
+- `k8s/monitoring.yaml` — ServiceMonitor x2 (scrapes `/metrics` on both backends every 15s)
+- `k8s/grafana-dashboard.yaml` — ConfigMap auto-imported by Grafana sidecar; label `grafana_dashboard: "1"`
 
 DB credentials flow: `postgres-secret` holds `POSTGRES_USER/PASSWORD/DB`; backend deployments pull `DB_USER`/`DB_PASSWORD` from that secret and remaining config (hosts, ports) from their ConfigMap.
+
+## Observability (Prometheus + Grafana + Loki)
+
+Deployed into a separate `monitoring` namespace via Helm, independently of the app namespace.
+
+```bash
+make observe          # add Helm repos, install kube-prometheus-stack + loki-stack, apply ServiceMonitors + dashboard
+make observe-teardown # uninstall Helm releases + delete monitoring k8s resources
+```
+
+Helm values live in `k8s/helm/`. Grafana is exposed as a LoadBalancer on port 3000 — `minikube tunnel` must be running. Login: `admin` / `admin`.
+
+**Metrics exposed:**
+- Both backends expose `GET /metrics` (Prometheus text format)
+- NestJS: `http_requests_total`, `http_request_duration_seconds`, `ws_connections_active`, `redis_messages_published_total`, `redis_messages_received_total`
+- FastAPI: same custom metrics via `prometheus_client`, plus automatic HTTP instrumentation from `prometheus-fastapi-instrumentator`
+
+**Gotchas:**
+- `serviceMonitorNamespaceSelector: {}` in kube-prometheus-stack values is required — the default restricts Prometheus to its own namespace and won't find ServiceMonitors in `edu-oe`.
+- Grafana sidecar `searchNamespace: ALL` is required to pick up the dashboard ConfigMap from the `edu-oe` namespace.
+- NestJS uses a local `Registry()` instance (not the global default) to avoid "metric already registered" errors during `--watch` hot-reloads.
+- FastAPI uses the global `prometheus_client` registry — do not create a `Registry()` there or the instrumentator's metrics will be hidden from `/metrics`.
+- `make observe` uses `--wait` on the kube-prometheus-stack install so the `ServiceMonitor` CRD exists before `kubectl apply -f k8s/monitoring.yaml` runs.
+- ServiceMonitors must have label `release: kube-prometheus-stack` — the chart hardwires `serviceMonitorSelector: {matchLabels: {release: kube-prometheus-stack}}` and ignores the `{}` override in values.
 
 ## Key files
 - `apps/backend-ts/src/position/` — NestJS entity, service, controller, gateway, module
 - `apps/backend-ts/src/app.module.ts` — TypeORM + ConfigModule setup
 - `apps/backend-ts/src/redis.provider.ts` — shared ioredis client token `REDIS_CLIENT`
+- `apps/backend-ts/src/metrics/` — MetricsService (Registry + counters/gauges), middleware, controller, global module
 - `apps/backend-py/main.py` — entire FastAPI service (single file)
 - `apps/frontend/src/App.tsx` — entire frontend (single file)
+- `k8s/helm/` — Helm values for kube-prometheus-stack and loki-stack

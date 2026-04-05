@@ -52,10 +52,13 @@ kind: Service
 metadata:
   name: backend-py
   namespace: edu-oe
+  labels:
+    app: backend-py
 spec:
   type: LoadBalancer
   selector:
     app: backend-py
   ports:
-    - port: 8000
+    - name: http
+      port: 8000
       targetPort: 8000

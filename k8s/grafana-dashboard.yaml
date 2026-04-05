@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: edu-oe-app-metrics
+  namespace: edu-oe
+  labels:
+    grafana_dashboard: "1"
+data:
+  edu-oe-app-metrics.json: |
+    {
+      "title": "edu-oe App Metrics",
+      "uid": "edu-oe-app-metrics",
+      "schemaVersion": 39,
+      "refresh": "10s",
+      "time": { "from": "now-15m", "to": "now" },
+      "panels": [
+        {
+          "id": 1,
+          "title": "HTTP Request Rate (req/s)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total[1m])) by (job)",
+              "legendFormat": "{{job}}"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "HTTP p95 Latency (s)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[1m])) by (job, le))",
+              "legendFormat": "{{job}}"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Active WebSocket Connections",
+          "type": "stat",
+          "gridPos": { "x": 0, "y": 8, "w": 6, "h": 4 },
+          "targets": [
+            {
+              "expr": "ws_connections_active",
+              "legendFormat": "{{job}}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Redis Published (msg/s)",
+          "type": "timeseries",
+          "gridPos": { "x": 6, "y": 8, "w": 9, "h": 4 },
+          "targets": [
+            {
+              "expr": "sum(rate(redis_messages_published_total[1m])) by (job)",
+              "legendFormat": "{{job}}"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "Redis Received (msg/s)",
+          "type": "timeseries",
+          "gridPos": { "x": 15, "y": 8, "w": 9, "h": 4 },
+          "targets": [
+            {
+              "expr": "sum(rate(redis_messages_received_total[1m])) by (job)",
+              "legendFormat": "{{job}}"
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "title": "Logs (edu-oe namespace)",
+          "type": "logs",
+          "gridPos": { "x": 0, "y": 12, "w": 24, "h": 8 },
+          "targets": [
+            {
+              "expr": "{namespace=\"edu-oe\"}",
+              "datasource": { "type": "loki" }
+            }
+          ]
+        }
+      ]
+    }

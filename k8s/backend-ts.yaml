@@ -52,10 +52,13 @@ kind: Service
 metadata:
   name: backend-ts
   namespace: edu-oe
+  labels:
+    app: backend-ts
 spec:
   type: LoadBalancer
   selector:
     app: backend-ts
   ports:
-    - port: 3001
+    - name: http
+      port: 3001
       targetPort: 3001
