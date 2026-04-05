@@ -4,7 +4,7 @@ import { PositionGateway } from './position/position.gateway';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.enableCors({ origin: /^http:\/\/localhost:\d+$/ });
+  app.enableCors({ origin: /^http:\/\/localhost(:\d+)?$/ });
   await app.listen(process.env.PORT ?? 3001);
 
   const gateway = app.get(PositionGateway);

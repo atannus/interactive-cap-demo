@@ -68,6 +68,39 @@ Frontend (React/Vite :5173)
 
 **Frontend:** a single `PositionBox` component is instantiated twice with different `restUrl`/`wsUrl` props. Position starts as `null` and is loaded via GET on mount. During drag, WS updates are suppressed via a `dragging` ref to avoid jitter from self-echo.
 
+## Kubernetes (minikube)
+
+Images are built directly into minikube's docker daemon — no registry needed. All resources live in the `edu-oe` namespace.
+
+```bash
+minikube start
+make build          # eval $(minikube docker-env) + docker build for all three images
+make deploy         # kubectl apply namespace first, then all k8s/ manifests
+minikube tunnel     # separate terminal — exposes LoadBalancer IPs as localhost
+```
+
+Then open `http://localhost` (frontend), backends at `:3001` and `:8000`.
+
+```bash
+make teardown       # kubectl delete -f k8s/
+```
+
+**Gotchas:**
+- `make deploy` applies `k8s/namespace.yaml` explicitly before `k8s/` to avoid ordering failures (`kubectl apply -f k8s/` is alphabetical — backend manifests come before namespace).
+- `imagePullPolicy: Never` on all app deployments — images must exist in minikube's daemon.
+- `pnpm deploy --legacy` is required in the NestJS Dockerfile (pnpm v10 changed the default).
+- Frontend hardcodes `localhost:3001` and `localhost:8000` — this works because `minikube tunnel` maps the LoadBalancer services to those ports. Cloud deployment would need `VITE_*` env vars baked in at build time.
+
+**k8s manifest layout:**
+- `k8s/namespace.yaml` — `edu-oe` namespace
+- `k8s/postgres.yaml` — Secret + PVC (1Gi) + Deployment + ClusterIP :5432
+- `k8s/redis.yaml` — Deployment + ClusterIP :6379
+- `k8s/backend-ts.yaml` — ConfigMap + Deployment + LoadBalancer :3001
+- `k8s/backend-py.yaml` — ConfigMap + Deployment + LoadBalancer :8000
+- `k8s/frontend.yaml` — Deployment + LoadBalancer :80
+
+DB credentials flow: `postgres-secret` holds `POSTGRES_USER/PASSWORD/DB`; backend deployments pull `DB_USER`/`DB_PASSWORD` from that secret and remaining config (hosts, ports) from their ConfigMap.
+
 ## Key files
 - `apps/backend-ts/src/position/` — NestJS entity, service, controller, gateway, module
 - `apps/backend-ts/src/app.module.ts` — TypeORM + ConfigModule setup

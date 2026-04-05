@@ -72,7 +72,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="backend-py", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^http://localhost:\d+$",
+    allow_origin_regex=r"^http://localhost(:\d+)?$",
     allow_methods=["*"],
     allow_headers=["*"],
 )
