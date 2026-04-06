@@ -23,6 +23,8 @@ observe: ## Deploy Prometheus, Grafana, and Loki into the monitoring namespace
 	helm repo add grafana https://grafana.github.io/helm-charts
 	helm repo update
 	kubectl create namespace $(HELM_MONITORING_NS) --dry-run=client -o yaml | kubectl apply -f -
+	kubectl apply -f k8s/grafana-dashboard.yaml
+	kubectl apply -f k8s/loki-datasource.yaml
 	helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
 		--namespace $(HELM_MONITORING_NS) \
 		--values k8s/helm/kube-prometheus-stack-values.yaml \
@@ -36,8 +38,6 @@ observe: ## Deploy Prometheus, Grafana, and Loki into the monitoring namespace
 		--values k8s/helm/alloy-values.yaml \
 		--wait
 	kubectl apply -f k8s/monitoring.yaml
-	kubectl apply -f k8s/grafana-dashboard.yaml
-	kubectl apply -f k8s/loki-datasource.yaml
 
 observe-teardown: ## Remove Prometheus, Grafana, and Loki
 	helm uninstall kube-prometheus-stack --namespace $(HELM_MONITORING_NS) || true
