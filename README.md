@@ -88,7 +88,7 @@ Requires minikube to be running with the app already deployed.
 make observe
 ```
 
-This installs `kube-prometheus-stack`, `loki`, and `promtail` via Helm into the `monitoring` namespace, then applies the ServiceMonitors, Grafana dashboard ConfigMap, and Loki datasource ConfigMap.
+This installs `kube-prometheus-stack`, `loki`, and `alloy` via Helm into the `monitoring` namespace, then applies the ServiceMonitors, Grafana dashboard ConfigMap, and Loki datasource ConfigMap.
 
 ### Accessing Grafana
 

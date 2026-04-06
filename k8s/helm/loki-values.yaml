@@ -34,6 +34,8 @@ resultsCache:
 # Disable components that require extra operators or create noise
 gateway:
   enabled: false
+lokiCanary:
+  enabled: false
 monitoring:
   selfMonitoring:
     enabled: false

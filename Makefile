@@ -27,12 +27,10 @@ observe: ## Deploy Prometheus, Grafana, and Loki into the monitoring namespace
 		--namespace $(HELM_MONITORING_NS) \
 		--values k8s/helm/kube-prometheus-stack-values.yaml \
 		--wait
-	helm uninstall loki-stack --namespace $(HELM_MONITORING_NS) || true
 	helm upgrade --install loki grafana/loki \
 		--namespace $(HELM_MONITORING_NS) \
 		--values k8s/helm/loki-values.yaml \
 		--wait
-	helm uninstall promtail --namespace $(HELM_MONITORING_NS) || true
 	helm upgrade --install alloy grafana/alloy \
 		--namespace $(HELM_MONITORING_NS) \
 		--values k8s/helm/alloy-values.yaml \
