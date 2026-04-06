@@ -34,9 +34,10 @@ alloy:
           target_label  = "job"
         }
         rule {
-          source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+          source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_name", "__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
           separator     = "/"
-          replacement   = "/var/log/pods/*$1/$2/*.log"
+          regex         = "([^/]+)/([^/]+)/([^/]+)/([^/]+)"
+          replacement   = "/var/log/pods/${1}_${2}_${3}/${4}/0.log"
           target_label  = "__path__"
         }
       }
@@ -47,7 +48,7 @@ alloy:
       }
 
       loki.process "pod_logs" {
-        stage.cri {}
+        stage.docker {}
         forward_to = [loki.write.loki.receiver]
       }
 
@@ -59,6 +60,7 @@ alloy:
 
   mounts:
     varlog: true
+    dockercontainers: true
 
 resources:
   requests: { cpu: 20m, memory: 64Mi }

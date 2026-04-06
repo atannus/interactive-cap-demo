@@ -82,7 +82,7 @@ data:
           "targets": [
             {
               "expr": "{namespace=\"edu-oe\"}",
-              "datasource": { "type": "loki" }
+              "datasource": { "type": "loki", "uid": "loki" }
             }
           ]
         }
