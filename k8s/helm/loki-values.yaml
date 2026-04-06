@@ -1,0 +1,45 @@
+deploymentMode: SingleBinary
+
+loki:
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: filesystem
+  useTestSchema: true
+
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: true
+    size: 1Gi
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 256Mi }
+
+# Disable microservice replicas
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+
+# Disable caches (not enough resources in minikube)
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+
+# Disable components that require extra operators or create noise
+gateway:
+  enabled: false
+monitoring:
+  selfMonitoring:
+    enabled: false
+    grafanaAgent:
+      installOperator: false
+  lokiCanary:
+    enabled: false
+test:
+  enabled: false

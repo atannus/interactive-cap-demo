@@ -27,15 +27,26 @@ observe: ## Deploy Prometheus, Grafana, and Loki into the monitoring namespace
 		--namespace $(HELM_MONITORING_NS) \
 		--values k8s/helm/kube-prometheus-stack-values.yaml \
 		--wait
-	helm upgrade --install loki-stack grafana/loki-stack \
+	helm uninstall loki-stack --namespace $(HELM_MONITORING_NS) || true
+	helm upgrade --install loki grafana/loki \
 		--namespace $(HELM_MONITORING_NS) \
-		--values k8s/helm/loki-stack-values.yaml \
+		--values k8s/helm/loki-values.yaml \
+		--wait
+	helm uninstall promtail --namespace $(HELM_MONITORING_NS) || true
+	helm upgrade --install alloy grafana/alloy \
+		--namespace $(HELM_MONITORING_NS) \
+		--values k8s/helm/alloy-values.yaml \
 		--wait
 	kubectl apply -f k8s/monitoring.yaml
 	kubectl apply -f k8s/grafana-dashboard.yaml
+	kubectl apply -f k8s/loki-datasource.yaml
 
 observe-teardown: ## Remove Prometheus, Grafana, and Loki
 	helm uninstall kube-prometheus-stack --namespace $(HELM_MONITORING_NS) || true
+	helm uninstall loki --namespace $(HELM_MONITORING_NS) || true
+	helm uninstall alloy --namespace $(HELM_MONITORING_NS) || true
+	helm uninstall promtail --namespace $(HELM_MONITORING_NS) || true
 	helm uninstall loki-stack --namespace $(HELM_MONITORING_NS) || true
 	kubectl delete -f k8s/monitoring.yaml || true
 	kubectl delete -f k8s/grafana-dashboard.yaml || true
+	kubectl delete -f k8s/loki-datasource.yaml || true

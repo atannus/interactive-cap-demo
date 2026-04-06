@@ -103,7 +103,7 @@ DB credentials flow: `postgres-secret` holds `POSTGRES_USER/PASSWORD/DB`; backen
 Deployed into a separate `monitoring` namespace via Helm.
 
 ```bash
-make observe          # add Helm repos, install kube-prometheus-stack + loki-stack, apply ServiceMonitors + dashboard
+make observe          # add Helm repos, install kube-prometheus-stack + loki + alloy, apply ServiceMonitors + dashboard + datasource
 make observe-teardown # uninstall Helm releases + delete monitoring k8s resources
 ```
 
@@ -121,6 +121,9 @@ Helm values live in `k8s/helm/`.
 - FastAPI uses the global `prometheus_client` registry — do not create a `Registry()` there or the instrumentator's metrics will be hidden from `/metrics`.
 - `make observe` uses `--wait` on the kube-prometheus-stack install so the `ServiceMonitor` CRD exists before `kubectl apply -f k8s/monitoring.yaml` runs.
 - ServiceMonitors must have label `release: kube-prometheus-stack` — the chart hardwires `serviceMonitorSelector: {matchLabels: {release: kube-prometheus-stack}}` and ignores the `{}` override in values.
+- `grafana/loki-stack` (Loki 2.6.1) is incompatible with modern Grafana — `/loki/api/v1/format_query` was added in 2.7 and the datasource health check always fails. Use `grafana/loki` chart (SingleBinary mode, Loki 3.x) instead.
+- The Loki datasource is provisioned automatically via `k8s/loki-datasource.yaml` (label `grafana_datasource: "1"` triggers the Grafana sidecar).
+- Use `grafana/alloy` (not the deprecated `grafana/promtail`) for log collection. Alloy is the successor to Promtail and Grafana Agent. Config is in River/Alloy syntax inside `alloy.configMap.content` in `k8s/helm/alloy-values.yaml`.
 
 ## Key files
 - `apps/backend-ts/src/position/` — NestJS entity, service, controller, gateway, module
@@ -129,4 +132,4 @@ Helm values live in `k8s/helm/`.
 - `apps/backend-ts/src/metrics/` — MetricsService (Registry + counters/gauges), middleware, controller, global module
 - `apps/backend-py/main.py` — entire FastAPI service (single file)
 - `apps/frontend/src/App.tsx` — entire frontend (single file)
-- `k8s/helm/` — Helm values for kube-prometheus-stack and loki-stack
+- `k8s/helm/` — Helm values for kube-prometheus-stack, loki, and alloy

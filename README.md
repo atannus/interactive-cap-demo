@@ -88,7 +88,7 @@ Requires minikube to be running with the app already deployed.
 make observe
 ```
 
-This installs `kube-prometheus-stack` and `loki-stack` via Helm into the `monitoring` namespace, then applies the ServiceMonitors and Grafana dashboard ConfigMap.
+This installs `kube-prometheus-stack`, `loki`, and `promtail` via Helm into the `monitoring` namespace, then applies the ServiceMonitors, Grafana dashboard ConfigMap, and Loki datasource ConfigMap.
 
 ### Accessing Grafana
 
@@ -100,13 +100,7 @@ The **edu-oe App Metrics** dashboard is auto-imported and shows:
 - Redis pub/sub message rates
 - Live logs from the `edu-oe` namespace
 
-### Adding Loki as a data source
-
-Loki is not wired to Grafana automatically. Do this once after `make observe`:
-
-1. Connections → Data sources → Add new data source → **Loki**
-2. URL: `http://loki-stack.monitoring.svc.cluster.local:3100`
-3. Save & test
+The Loki datasource is provisioned automatically — no manual setup needed.
 
 ### Teardown
 
