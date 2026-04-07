@@ -171,3 +171,45 @@ nav a.active {
   cursor: grabbing;
   transform: translate(-50%, -50%) scale(1.15);
 }
+
+/* ── CAP Controls ── */
+.cap-bar {
+  flex-shrink: 0;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.cap-btns { display: flex; gap: 0.5rem; }
+.cap-btn {
+  padding: 0.3rem 0.85rem;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  border-radius: 4px;
+}
+.cap-btn.active { border-color: var(--accent-ts); color: var(--accent-ts); }
+.cap-desc { margin: 0; font-size: 0.75rem; color: var(--text); opacity: 0.6; }
+
+/* ── Status Pill ── */
+.status-pill {
+  margin-left: auto;
+  font-size: 0.65rem;
+  font-family: var(--mono);
+  padding: 0.15rem 0.45rem;
+  border-radius: 3px;
+  font-weight: 600;
+}
+.status-pill.ap { background: rgba(220, 130, 0, 0.15); color: #dc8200; border: 1px solid rgba(220, 130, 0, 0.3); }
+.status-pill.cp { background: rgba(200, 40, 40, 0.15); color: #c82828; border: 1px solid rgba(200, 40, 40, 0.3); }
+
+/* ── Ghost Marker ── */
+.marker.ghost {
+  opacity: 0.22;
+  pointer-events: none;
+  transition: none;
+}

@@ -7,6 +7,7 @@ import Redis from 'ioredis';
 import { REDIS_CLIENT } from '../redis.provider';
 import { POSITION_CHANNEL } from './position.service';
 import { MetricsService } from '../metrics/metrics.service';
+import { PartitionService } from './partition.service';
 
 @Injectable()
 export class PositionGateway implements OnModuleInit, OnModuleDestroy {
@@ -17,6 +18,7 @@ export class PositionGateway implements OnModuleInit, OnModuleDestroy {
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly config: ConfigService,
     private readonly metrics: MetricsService,
+    private readonly partition: PartitionService,
   ) {}
 
   onModuleInit() {
@@ -27,6 +29,7 @@ export class PositionGateway implements OnModuleInit, OnModuleDestroy {
 
     this.subscriber.subscribe(POSITION_CHANNEL);
     this.subscriber.on('message', (_channel: string, message: string) => {
+      if (this.partition.active) return;
       this.metrics.redisReceivedTotal.inc();
       this.wss.clients.forEach((client) => {
         if (client.readyState === client.OPEN) {

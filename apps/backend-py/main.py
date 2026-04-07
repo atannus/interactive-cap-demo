@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 
 import redis.asyncio as aioredis
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import Counter, Gauge
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -57,6 +57,9 @@ class PositionRow(Base):
 # Connected WebSocket clients
 clients: set[WebSocket] = set()
 
+partition_active: bool = False
+partition_mode: str = "AP"  # "AP" | "CP"
+
 ws_connections_active = Gauge("ws_connections_active", "Active WebSocket connections")
 redis_messages_published_total = Counter("redis_messages_published_total", "Redis messages published")
 redis_messages_received_total = Counter("redis_messages_received_total", "Redis messages received")
@@ -68,6 +71,8 @@ async def redis_subscriber():
     await pubsub.subscribe(POSITION_CHANNEL)
     async for message in pubsub.listen():
         if message["type"] != "message":
+            continue
+        if partition_active:
             continue
         redis_messages_received_total.inc()
         data = message["data"]
@@ -116,6 +121,19 @@ class PositionBody(BaseModel):
     y: float
 
 
+class PartitionBody(BaseModel):
+    active: bool
+    mode: str
+
+
+@app.post("/admin/partition")
+async def set_partition(body: PartitionBody):
+    global partition_active, partition_mode
+    partition_active = body.active
+    partition_mode = body.mode
+    return {"active": partition_active, "mode": partition_mode}
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
@@ -132,6 +150,8 @@ async def get_position():
 
 @app.patch("/position")
 async def update_position(body: PositionBody):
+    if partition_active and partition_mode == "CP":
+        raise HTTPException(status_code=503, detail="Partition active: CP mode rejects writes")
     now = datetime.utcnow()
     async with AsyncSessionLocal() as session:
         await session.execute(
@@ -148,10 +168,11 @@ async def update_position(body: PositionBody):
         await session.commit()
 
     payload = {"x": body.x, "y": body.y, "updated_at": now.isoformat()}
-    r = aioredis.Redis(host=REDIS_HOST, port=REDIS_PORT)
-    await r.publish(POSITION_CHANNEL, json.dumps(payload))
-    redis_messages_published_total.inc()
-    await r.aclose()
+    if not partition_active:
+        r = aioredis.Redis(host=REDIS_HOST, port=REDIS_PORT)
+        await r.publish(POSITION_CHANNEL, json.dumps(payload))
+        redis_messages_published_total.inc()
+        await r.aclose()
     return payload
 
 

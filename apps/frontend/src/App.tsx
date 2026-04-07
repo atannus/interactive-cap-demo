@@ -18,14 +18,43 @@ function useDebounced<T extends unknown[]>(fn: (...args: T) => void, ms: number)
   }, [fn, ms])
 }
 
+// ── CAP Controls ──────────────────────────────────────────────────────────────
+
+const MODES = [
+  { key: 'normal', label: 'Normal', desc: 'Both backends publish to Redis — markers stay in sync' },
+  { key: 'AP',     label: 'AP — Stay Available', desc: 'Partition active — backends accept writes but markers will diverge' },
+  { key: 'CP',     label: 'CP — Stay Consistent', desc: 'Partition active — backends reject writes to preserve consistency' },
+] as const
+
+function CAPControls({ mode, onChange }: { mode: string; onChange: (m: 'normal' | 'AP' | 'CP') => void }) {
+  const active = MODES.find(m => m.key === mode)
+  return (
+    <div className="cap-bar">
+      <div className="cap-btns">
+        {MODES.map(m => (
+          <button key={m.key} className={`cap-btn${mode === m.key ? ' active' : ''}`} onClick={() => onChange(m.key as 'normal' | 'AP' | 'CP')}>
+            {m.label}
+          </button>
+        ))}
+      </div>
+      <p className="cap-desc">{active?.desc}</p>
+    </div>
+  )
+}
+
+// ── Position Box ──────────────────────────────────────────────────────────────
+
 interface BoxProps {
   label: string
   badge: string
   wsUrl: string
   restUrl: string
+  capMode: 'normal' | 'AP' | 'CP'
+  ghostPos: Position | null
+  onPositionChange: (p: Position) => void
 }
 
-function PositionBox({ label, badge, wsUrl, restUrl }: BoxProps) {
+function PositionBox({ label, badge, wsUrl, restUrl, capMode, ghostPos, onPositionChange }: BoxProps) {
   const [pos, setPos] = useState<Position | null>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
@@ -48,12 +77,14 @@ function PositionBox({ label, badge, wsUrl, restUrl }: BoxProps) {
   }, [])
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
+    if (capMode === 'CP') return
     e.preventDefault()
     dragging.current = true
     const onMove = (e: MouseEvent) => {
       if (!dragging.current) return
       const p = toNormalized(e.clientX, e.clientY)
       setPos(p)
+      onPositionChange(p)
       persistDebounced(p)
     }
     const onUp = () => {
@@ -63,24 +94,36 @@ function PositionBox({ label, badge, wsUrl, restUrl }: BoxProps) {
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
-  }, [toNormalized, persistDebounced])
+  }, [capMode, toNormalized, persistDebounced, onPositionChange])
 
   useEffect(() => {
     fetch(restUrl)
       .then(r => r.json())
-      .then(d => { if (d) setPos({ x: d.x, y: d.y }) })
-      .catch(() => setPos({ x: 0, y: 0 }))
-  }, [restUrl])
+      .then(d => {
+        if (d) {
+          const p = { x: d.x, y: d.y }
+          setPos(p)
+          onPositionChange(p)
+        }
+      })
+      .catch(() => {
+        const p = { x: 0, y: 0 }
+        setPos(p)
+        onPositionChange(p)
+      })
+  }, [restUrl]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const ws = new WebSocket(wsUrl)
     ws.onmessage = (e) => {
       if (dragging.current) return
       const data = JSON.parse(e.data) as { x: number; y: number }
-      setPos({ x: data.x, y: data.y })
+      const p = { x: data.x, y: data.y }
+      setPos(p)
+      onPositionChange(p)
     }
     return () => ws.close()
-  }, [wsUrl])
+  }, [wsUrl]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const left = pos ? `${(pos.x + 1) / 2 * 100}%` : '50%'
   const top  = pos ? `${(pos.y + 1) / 2 * 100}%` : '50%'
@@ -91,10 +134,24 @@ function PositionBox({ label, badge, wsUrl, restUrl }: BoxProps) {
         <span className={`box-badge ${badge}`}>{label}</span>
         <span className="box-title">{label === 'TypeScript' ? 'NestJS' : 'FastAPI'}</span>
         <span className="box-coords">{pos ? `${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}` : '…'}</span>
+        {capMode !== 'normal' && (
+          <span className={`status-pill ${capMode.toLowerCase()}`}>
+            {capMode === 'AP' ? 'PARTITIONED / AP' : 'PARTITIONED / CP'}
+          </span>
+        )}
       </div>
       <div className="box-canvas" ref={canvasRef}>
         <div className="crosshair-h" />
         <div className="crosshair-v" />
+        {ghostPos && (
+          <div
+            className={`marker ghost ${badge}`}
+            style={{
+              left: `${(ghostPos.x + 1) / 2 * 100}%`,
+              top: `${(ghostPos.y + 1) / 2 * 100}%`,
+            }}
+          />
+        )}
         {pos && <div className={`marker ${badge}`} style={{ left, top }} onMouseDown={onMouseDown} />}
       </div>
     </div>
@@ -104,6 +161,21 @@ function PositionBox({ label, badge, wsUrl, restUrl }: BoxProps) {
 // ── App ───────────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const [tsPos, setTsPos] = useState<Position | null>(null)
+  const [pyPos, setPyPos] = useState<Position | null>(null)
+  const [capMode, setCapMode] = useState<'normal' | 'AP' | 'CP'>('normal')
+
+  async function applyMode(mode: 'normal' | 'AP' | 'CP') {
+    const body = mode === 'normal'
+      ? { active: false, mode: 'AP' }
+      : { active: true, mode }
+    await Promise.all([
+      fetch('http://localhost:3001/admin/partition', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+      fetch('http://localhost:8000/admin/partition', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+    ])
+    setCapMode(mode)
+  }
+
   return (
     <div className="layout">
       <header className="header">
@@ -113,18 +185,25 @@ export default function App() {
           <a href="#">About</a>
         </nav>
       </header>
+      <CAPControls mode={capMode} onChange={applyMode} />
       <main className="main">
         <PositionBox
           label="TypeScript"
           badge="ts"
           wsUrl="ws://localhost:3001/ws"
           restUrl="http://localhost:3001/position"
+          capMode={capMode}
+          ghostPos={pyPos}
+          onPositionChange={setTsPos}
         />
         <PositionBox
           label="Python"
           badge="py"
           wsUrl="ws://localhost:8000/ws"
           restUrl="http://localhost:8000/position"
+          capMode={capMode}
+          ghostPos={tsPos}
+          onPositionChange={setPyPos}
         />
       </main>
     </div>
