@@ -60,13 +60,23 @@ Frontend (React/Vite :5173)
                           (both backends read/write)
 ```
 
-**Shared state:** a single `positions` table row (`box_id = "ts"`). Either backend can upsert it. After a write, the writer publishes to the Redis channel `position:updated`. Each backend has a separate Redis subscriber that forwards incoming messages over WebSocket to all connected frontend clients.
+**Shared state:** a single `positions` table row (`data_id = "1"`). Either backend can upsert it. After a write, the writer publishes to the Redis channel `position:updated`. Each backend has a separate Redis subscriber that forwards incoming messages over WebSocket to all connected frontend clients.
+
+**Position endpoints:** `GET /position` and `PATCH /position` on both backends. `data_id` is an internal constant (`"1"`); it is not exposed as a URL parameter.
 
 **NestJS WS:** `PositionGateway` is a plain `@Injectable()` (not a `@WebSocketGateway`) that owns a `ws.Server({ noServer: true })`. `main.ts` wires it to the HTTP server's `upgrade` event at path `/ws`. This avoids the `WsAdapter` abstraction.
 
 **FastAPI WS:** a background asyncio task subscribes to Redis and broadcasts to all connected WebSocket clients stored in a module-level `set`.
 
 **Frontend:** a single `PositionBox` component is instantiated twice with different `restUrl`/`wsUrl` props. Position starts as `null` and is loaded via GET on mount. During drag, WS updates are suppressed via a `dragging` ref to avoid jitter from self-echo.
+
+## Logging
+
+Both backends emit HTTP access logs to stdout in a unified format:
+```
+INFO METHOD /path STATUS_CODE Nms
+```
+`/metrics` requests are excluded from logs in both backends. NestJS uses `console.log` directly (no NestJS `Logger` wrapper). FastAPI disables `uvicorn.access` and uses a custom Starlette middleware.
 
 ## Kubernetes (minikube)
 

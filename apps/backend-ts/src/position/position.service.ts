@@ -18,15 +18,22 @@ export class PositionService {
     private readonly metrics: MetricsService,
   ) {}
 
-  async upsert(boxId: string, x: number, y: number): Promise<Position> {
-    await this.repo.upsert({ box_id: boxId, x, y }, ['box_id']);
-    const position = await this.repo.findOneByOrFail({ box_id: boxId });
-    await this.redis.publish(POSITION_CHANNEL, JSON.stringify(position));
+  async upsert(dataId: string, x: number, y: number): Promise<Position> {
+    await this.repo.upsert({ data_id: dataId, x, y }, ['data_id']);
+    const position = await this.repo.findOneByOrFail({ data_id: dataId });
+    await this.redis.publish(
+      POSITION_CHANNEL,
+      JSON.stringify({
+        x: position.x,
+        y: position.y,
+        updated_at: position.updated_at,
+      }),
+    );
     this.metrics.redisPublishedTotal.inc();
     return position;
   }
 
-  findOne(boxId: string): Promise<Position | null> {
-    return this.repo.findOneBy({ box_id: boxId });
+  findOne(dataId: string): Promise<Position | null> {
+    return this.repo.findOneBy({ data_id: dataId });
   }
 }

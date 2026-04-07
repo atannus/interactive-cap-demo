@@ -118,13 +118,13 @@ export default function App() {
           label="TypeScript"
           badge="ts"
           wsUrl="ws://localhost:3001/ws"
-          restUrl="http://localhost:3001/position/ts"
+          restUrl="http://localhost:3001/position"
         />
         <PositionBox
           label="Python"
           badge="py"
           wsUrl="ws://localhost:8000/ws"
-          restUrl="http://localhost:8000/position/ts"
+          restUrl="http://localhost:8000/position"
         />
       </main>
     </div>

@@ -1,11 +1,9 @@
-import { Injectable, Logger, NestMiddleware } from '@nestjs/common';
+import { Injectable, NestMiddleware } from '@nestjs/common';
 import type { Request, Response, NextFunction } from 'express';
 import { MetricsService } from './metrics.service';
 
 @Injectable()
 export class MetricsMiddleware implements NestMiddleware {
-  private readonly logger = new Logger('HTTP');
-
   constructor(private readonly metrics: MetricsService) {}
 
   use(req: Request, res: Response, next: NextFunction) {
@@ -20,9 +18,7 @@ export class MetricsMiddleware implements NestMiddleware {
       };
       this.metrics.httpRequestsTotal.inc(labels);
       const duration = end({ method: req.method, route });
-      this.logger.log(
-        `${req.method} ${req.path} ${res.statusCode} ${(duration * 1000).toFixed(0)}ms`,
-      );
+      console.log(`INFO ${req.method} ${req.path} ${res.statusCode} ${(duration * 1000).toFixed(0)}ms`);
     });
     next();
   }

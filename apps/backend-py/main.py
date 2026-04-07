@@ -1,11 +1,13 @@
 import asyncio
 import json
+import logging
 import os
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 
 import redis.asyncio as aioredis
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import Counter, Gauge
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -14,6 +16,17 @@ from sqlalchemy import Column, Float, String, DateTime, text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+
+logging.getLogger("uvicorn.access").disabled = True
+
+_http_logger = logging.getLogger("http")
+_http_logger.setLevel(logging.INFO)
+_http_handler = logging.StreamHandler()
+_http_handler.setFormatter(logging.Formatter("%(levelname)s %(message)s"))
+_http_logger.addHandler(_http_handler)
+_http_logger.propagate = False
+
+DATA_ID = "1"
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
@@ -35,7 +48,7 @@ Base = declarative_base()
 
 class PositionRow(Base):
     __tablename__ = "positions"
-    box_id = Column(String, primary_key=True)
+    data_id = Column(String, primary_key=True)
     x = Column(Float, nullable=False)
     y = Column(Float, nullable=False)
     updated_at = Column(DateTime(timezone=True), nullable=False)
@@ -86,6 +99,18 @@ app.add_middleware(
 Instrumentator().instrument(app).expose(app)
 
 
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    t0 = time.monotonic()
+    response = await call_next(request)
+    if request.url.path != "/metrics":
+        ms = round((time.monotonic() - t0) * 1000)
+        _http_logger.info(
+            "%s %s %d %dms", request.method, request.url.path, response.status_code, ms
+        )
+    return response
+
+
 class PositionBody(BaseModel):
     x: float
     y: float
@@ -96,33 +121,33 @@ async def health():
     return {"status": "ok"}
 
 
-@app.get("/position/{box_id}")
-async def get_position(box_id: str):
+@app.get("/position")
+async def get_position():
     async with AsyncSessionLocal() as session:
-        row = await session.get(PositionRow, box_id)
+        row = await session.get(PositionRow, DATA_ID)
         if row is None:
             return None
-        return {"box_id": row.box_id, "x": row.x, "y": row.y, "updated_at": row.updated_at.isoformat()}
+        return {"x": row.x, "y": row.y, "updated_at": row.updated_at.isoformat()}
 
 
-@app.patch("/position/{box_id}")
-async def update_position(box_id: str, body: PositionBody):
+@app.patch("/position")
+async def update_position(body: PositionBody):
     now = datetime.utcnow()
     async with AsyncSessionLocal() as session:
         await session.execute(
             text(
                 """
-                INSERT INTO positions (box_id, x, y, updated_at)
-                VALUES (:box_id, :x, :y, :updated_at)
-                ON CONFLICT (box_id) DO UPDATE
+                INSERT INTO positions (data_id, x, y, updated_at)
+                VALUES (:data_id, :x, :y, :updated_at)
+                ON CONFLICT (data_id) DO UPDATE
                 SET x = EXCLUDED.x, y = EXCLUDED.y, updated_at = EXCLUDED.updated_at
                 """
             ),
-            {"box_id": box_id, "x": body.x, "y": body.y, "updated_at": now},
+            {"data_id": DATA_ID, "x": body.x, "y": body.y, "updated_at": now},
         )
         await session.commit()
 
-    payload = {"box_id": box_id, "x": body.x, "y": body.y, "updated_at": now.isoformat()}
+    payload = {"x": body.x, "y": body.y, "updated_at": now.isoformat()}
     r = aioredis.Redis(host=REDIS_HOST, port=REDIS_PORT)
     await r.publish(POSITION_CHANNEL, json.dumps(payload))
     redis_messages_published_total.inc()
