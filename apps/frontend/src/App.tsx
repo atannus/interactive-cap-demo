@@ -50,11 +50,9 @@ interface BoxProps {
   wsUrl: string
   restUrl: string
   capMode: 'normal' | 'AP' | 'CP'
-  ghostPos: Position | null
-  onPositionChange: (p: Position) => void
 }
 
-function PositionBox({ label, badge, wsUrl, restUrl, capMode, ghostPos, onPositionChange }: BoxProps) {
+function PositionBox({ label, badge, wsUrl, restUrl, capMode }: BoxProps) {
   const [pos, setPos] = useState<Position | null>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
@@ -84,7 +82,6 @@ function PositionBox({ label, badge, wsUrl, restUrl, capMode, ghostPos, onPositi
       if (!dragging.current) return
       const p = toNormalized(e.clientX, e.clientY)
       setPos(p)
-      onPositionChange(p)
       persistDebounced(p)
     }
     const onUp = () => {
@@ -94,23 +91,15 @@ function PositionBox({ label, badge, wsUrl, restUrl, capMode, ghostPos, onPositi
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
-  }, [capMode, toNormalized, persistDebounced, onPositionChange])
+  }, [capMode, toNormalized, persistDebounced])
 
   useEffect(() => {
     fetch(restUrl)
       .then(r => r.json())
       .then(d => {
-        if (d) {
-          const p = { x: d.x, y: d.y }
-          setPos(p)
-          onPositionChange(p)
-        }
+        if (d) setPos({ x: d.x, y: d.y })
       })
-      .catch(() => {
-        const p = { x: 0, y: 0 }
-        setPos(p)
-        onPositionChange(p)
-      })
+      .catch(() => setPos({ x: 0, y: 0 }))
   }, [restUrl]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -118,9 +107,7 @@ function PositionBox({ label, badge, wsUrl, restUrl, capMode, ghostPos, onPositi
     ws.onmessage = (e) => {
       if (dragging.current) return
       const data = JSON.parse(e.data) as { x: number; y: number }
-      const p = { x: data.x, y: data.y }
-      setPos(p)
-      onPositionChange(p)
+      setPos({ x: data.x, y: data.y })
     }
     return () => ws.close()
   }, [wsUrl]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -143,15 +130,6 @@ function PositionBox({ label, badge, wsUrl, restUrl, capMode, ghostPos, onPositi
       <div className="box-canvas" ref={canvasRef}>
         <div className="crosshair-h" />
         <div className="crosshair-v" />
-        {ghostPos && (
-          <div
-            className={`marker ghost ${badge}`}
-            style={{
-              left: `${(ghostPos.x + 1) / 2 * 100}%`,
-              top: `${(ghostPos.y + 1) / 2 * 100}%`,
-            }}
-          />
-        )}
         {pos && <div className={`marker ${badge}`} style={{ left, top }} onMouseDown={onMouseDown} />}
       </div>
     </div>
@@ -161,8 +139,6 @@ function PositionBox({ label, badge, wsUrl, restUrl, capMode, ghostPos, onPositi
 // ── App ───────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [tsPos, setTsPos] = useState<Position | null>(null)
-  const [pyPos, setPyPos] = useState<Position | null>(null)
   const [capMode, setCapMode] = useState<'normal' | 'AP' | 'CP'>('normal')
 
   async function applyMode(mode: 'normal' | 'AP' | 'CP') {
@@ -193,8 +169,6 @@ export default function App() {
           wsUrl="ws://localhost:3001/ws"
           restUrl="http://localhost:3001/position"
           capMode={capMode}
-          ghostPos={pyPos}
-          onPositionChange={setTsPos}
         />
         <PositionBox
           label="Python"
@@ -202,8 +176,6 @@ export default function App() {
           wsUrl="ws://localhost:8000/ws"
           restUrl="http://localhost:8000/position"
           capMode={capMode}
-          ghostPos={tsPos}
-          onPositionChange={setPyPos}
         />
       </main>
     </div>

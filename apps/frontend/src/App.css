@@ -207,9 +207,3 @@ nav a.active {
 .status-pill.ap { background: rgba(220, 130, 0, 0.15); color: #dc8200; border: 1px solid rgba(220, 130, 0, 0.3); }
 .status-pill.cp { background: rgba(200, 40, 40, 0.15); color: #c82828; border: 1px solid rgba(200, 40, 40, 0.3); }
 
-/* ── Ghost Marker ── */
-.marker.ghost {
-  opacity: 0.22;
-  pointer-events: none;
-  transition: none;
-}
