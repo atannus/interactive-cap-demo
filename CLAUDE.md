@@ -36,9 +36,11 @@ pnpm --filter backend-ts test:e2e    # jest e2e
 The Python service uses a local venv managed by `uv`. Always prefix Python/pip commands with `.venv/bin/`:
 ```bash
 cd apps/backend-py
-uv pip install <package>             # install a dependency
+uv sync --no-install-project        # restore venv from uv.lock (use this after a fresh clone or if packages go missing)
+uv pip install <package>             # install a dependency (then run `uv lock` to update uv.lock)
 .venv/bin/python -c "import main"    # syntax-check main.py
 ```
+`--no-install-project` is required because the service is a single `main.py` script, not an installable package, so `uv sync` would otherwise fail trying to build it.
 No test runner is configured yet.
 
 ### Frontend (apps/frontend)
