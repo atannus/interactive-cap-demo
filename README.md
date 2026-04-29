@@ -1,14 +1,16 @@
 # edu.over-engineering
 
-A polyglot monorepo demonstrating real-time position synchronisation across two independent backends sharing a PostgreSQL database and Redis pub/sub channel. Built as a platform for CAP theorem experiments.
+A polyglot monorepo for CAP theorem experiments. Two independent backends (NestJS + FastAPI) act as symmetric multi-leader nodes, each owning their own PostgreSQL table and staying in sync via Redis replication events. A React frontend shows each backend's live view of the shared state, lets you trigger AP or CP partitions, and walks you through reconciliation when the partition heals.
+
+For the design rationale — why multi-leader, why separate tables, why the partition model works the way it does — see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ```
 Frontend (React/Vite :5173)
-  ├── REST PATCH + WebSocket ──► NestJS (:3001)
-  └── REST PATCH + WebSocket ──► FastAPI (:8000)
+  ├── REST PATCH + WebSocket ──► NestJS (:3001)  [positions_ts]
+  └── REST PATCH + WebSocket ──► FastAPI (:8000) [positions_py]
                                     │
-                          PostgreSQL + Redis pub/sub
-                          (both backends read/write)
+                          PostgreSQL (separate tables per node)
+                          Redis (replication events, not notifications)
 ```
 
 ## Prerequisites

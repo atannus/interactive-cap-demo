@@ -4,7 +4,7 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 
 import redis.asyncio as aioredis
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -35,7 +35,7 @@ DB_PORT = os.getenv("DB_PORT", "5432")
 DB_USER = os.getenv("DB_USER", "app")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "app")
 DB_NAME = os.getenv("DB_NAME", "app")
-POSITION_CHANNEL = "position:updated"
+REPLICATION_CHANNEL = "position:replicated"
 
 DATABASE_URL = (
     f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
@@ -47,7 +47,7 @@ Base = declarative_base()
 
 
 class PositionRow(Base):
-    __tablename__ = "positions"
+    __tablename__ = "positions_py"
     data_id = Column(String, primary_key=True)
     x = Column(Float, nullable=False)
     y = Column(Float, nullable=False)
@@ -65,30 +65,60 @@ redis_messages_published_total = Counter("redis_messages_published_total", "Redi
 redis_messages_received_total = Counter("redis_messages_received_total", "Redis messages received")
 
 
+async def broadcast(payload: dict) -> None:
+    """Send a position update to all connected WebSocket clients."""
+    text_data = json.dumps(payload)
+    dead = set()
+    for ws in clients:
+        try:
+            await ws.send_text(text_data)
+        except Exception:
+            dead.add(ws)
+    clients.difference_update(dead)
+
+
+async def apply_replication(x: float, y: float, updated_at_str: str) -> None:
+    """Apply an incoming replication event from NestJS to positions_py and broadcast."""
+    ts = datetime.fromisoformat(updated_at_str)
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            text(
+                """
+                INSERT INTO positions_py (data_id, x, y, updated_at)
+                VALUES (:data_id, :x, :y, :updated_at)
+                ON CONFLICT (data_id) DO UPDATE
+                SET x = EXCLUDED.x, y = EXCLUDED.y, updated_at = EXCLUDED.updated_at
+                """
+            ),
+            {"data_id": DATA_ID, "x": x, "y": y, "updated_at": ts},
+        )
+        await session.commit()
+    await broadcast({"x": x, "y": y, "updated_at": updated_at_str})
+
+
 async def redis_subscriber():
     r = aioredis.Redis(host=REDIS_HOST, port=REDIS_PORT)
     pubsub = r.pubsub()
-    await pubsub.subscribe(POSITION_CHANNEL)
+    await pubsub.subscribe(REPLICATION_CHANNEL)
     async for message in pubsub.listen():
         if message["type"] != "message":
             continue
         if partition_active:
             continue
-        redis_messages_received_total.inc()
         data = message["data"]
         if isinstance(data, bytes):
             data = data.decode()
-        dead = set()
-        for ws in clients:
-            try:
-                await ws.send_text(data)
-            except Exception:
-                dead.add(ws)
-        clients.difference_update(dead)
+        event = json.loads(data)
+        if event.get("source") == "py":
+            continue  # discard own replication events to avoid loops
+        redis_messages_received_total.inc()
+        await apply_replication(event["x"], event["y"], event["updated_at"])
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     task = asyncio.create_task(redis_subscriber())
     yield
     task.cancel()
@@ -134,6 +164,15 @@ async def set_partition(body: PartitionBody):
     return {"active": partition_active, "mode": partition_mode}
 
 
+@app.get("/admin/local-state")
+async def get_local_state():
+    async with AsyncSessionLocal() as session:
+        row = await session.get(PositionRow, DATA_ID)
+        if row is None:
+            return None
+        return {"x": row.x, "y": row.y, "updated_at": row.updated_at.isoformat(), "source": "py"}
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
@@ -152,12 +191,12 @@ async def get_position():
 async def update_position(body: PositionBody):
     if partition_active and partition_mode == "CP":
         raise HTTPException(status_code=503, detail="Partition active: CP mode rejects writes")
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as session:
         await session.execute(
             text(
                 """
-                INSERT INTO positions (data_id, x, y, updated_at)
+                INSERT INTO positions_py (data_id, x, y, updated_at)
                 VALUES (:data_id, :x, :y, :updated_at)
                 ON CONFLICT (data_id) DO UPDATE
                 SET x = EXCLUDED.x, y = EXCLUDED.y, updated_at = EXCLUDED.updated_at
@@ -168,9 +207,10 @@ async def update_position(body: PositionBody):
         await session.commit()
 
     payload = {"x": body.x, "y": body.y, "updated_at": now.isoformat()}
+    await broadcast(payload)
     if not partition_active:
         r = aioredis.Redis(host=REDIS_HOST, port=REDIS_PORT)
-        await r.publish(POSITION_CHANNEL, json.dumps(payload))
+        await r.publish(REPLICATION_CHANNEL, json.dumps({"source": "py", **payload}))
         redis_messages_published_total.inc()
         await r.aclose()
     return payload

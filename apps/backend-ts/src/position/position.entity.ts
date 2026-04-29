@@ -1,6 +1,6 @@
-import { Column, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
+import { Column, Entity, PrimaryColumn } from 'typeorm';
 
-@Entity('positions')
+@Entity('positions_ts')
 export class Position {
   @PrimaryColumn()
   data_id: string;
@@ -11,6 +11,6 @@ export class Position {
   @Column('double precision')
   y: number;
 
-  @UpdateDateColumn()
+  @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   updated_at: Date;
 }

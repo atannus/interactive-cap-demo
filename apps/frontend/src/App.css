@@ -207,3 +207,66 @@ nav a.active {
 .status-pill.ap { background: rgba(220, 130, 0, 0.15); color: #dc8200; border: 1px solid rgba(220, 130, 0, 0.3); }
 .status-pill.cp { background: rgba(200, 40, 40, 0.15); color: #c82828; border: 1px solid rgba(200, 40, 40, 0.3); }
 
+/* ── CAP Controls (redesign) ── */
+.cap-controls-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.cap-label { font-size: 0.75rem; opacity: 0.6; white-space: nowrap; }
+.cap-select {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.cap-duration-input {
+  width: 52px;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  text-align: right;
+}
+.cap-btn.trigger-ap { border-color: rgba(220, 130, 0, 0.5); color: #dc8200; }
+.cap-btn.trigger-ap:hover { background: rgba(220, 130, 0, 0.08); }
+.cap-btn.trigger-cp { border-color: rgba(200, 40, 40, 0.5); color: #c82828; }
+.cap-btn.trigger-cp:hover { background: rgba(200, 40, 40, 0.08); }
+.cap-btn.heal { border-color: rgba(61, 184, 69, 0.5); color: #3db845; font-weight: 600; }
+.cap-btn.heal:hover { background: rgba(61, 184, 69, 0.08); }
+.partition-banner {
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.partition-banner.ap { background: rgba(220, 130, 0, 0.12); color: #dc8200; border: 1px solid rgba(220, 130, 0, 0.3); }
+.partition-banner.cp { background: rgba(200, 40, 40, 0.12); color: #c82828; border: 1px solid rgba(200, 40, 40, 0.3); }
+.cap-heuristic-label { font-size: 0.75rem; opacity: 0.5; font-family: var(--mono); }
+
+/* ── Canvas rejection flash ── */
+.box-canvas.rejected-flash { box-shadow: inset 0 0 0 2px rgba(200, 40, 40, 0.7); }
+
+/* ── Event Log ── */
+.event-log {
+  flex-shrink: 0;
+  height: 160px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+  padding: 0.5rem 1.5rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.6;
+}
+.event-log-empty { opacity: 0.35; }
+.event-log-entry { display: flex; gap: 0.75rem; }
+.el-ts { opacity: 0.35; white-space: nowrap; flex-shrink: 0; }
+.event-log-entry.info  .el-msg { color: var(--text); opacity: 0.8; }
+.event-log-entry.warn  .el-msg { color: #dc8200; }
+.event-log-entry.error .el-msg { color: #c82828; }
+.event-log-entry.success .el-msg { color: #3db845; }
+
