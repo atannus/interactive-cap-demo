@@ -20,6 +20,20 @@ html.about-view .layout {
   flex-shrink: 0;
 }
 
+.logo-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.logo-byline {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 400;
+  color: #525252;
+  user-select: none;
+}
+
 .logo {
   font-family: var(--mono), sans-serif;
   font-size: 13px;

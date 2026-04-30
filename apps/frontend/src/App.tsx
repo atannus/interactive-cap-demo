@@ -455,7 +455,10 @@ export default function App() {
   return (
     <div className="layout">
       <header className="header">
-        <div className="logo">Interactive<span>·</span>Cap<span>·</span>Demo</div>
+        <div className="logo-group">
+          <div className="logo">Interactive<span>·</span>Cap<span>·</span>Demo</div>
+          <span className="logo-byline">by Andre Tannus</span>
+        </div>
         <nav>
           <Link to="/" className={!isAbout ? 'active' : ''}>App</Link>
           <Link to="/about" className={isAbout ? 'active' : ''}>About</Link>
