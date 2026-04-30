@@ -1,0 +1,185 @@
+<svg viewBox="0 0 960 310" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Architecture data flow in Normal, AP, and CP modes">
+  <title>Architecture Data Flow</title>
+  <defs>
+    <!-- Green arrowhead -->
+    <marker id="ah-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M0,1 L9,5 L0,9 Z" fill="#3db845" fill-opacity="0.8"/>
+    </marker>
+    <!-- Red arrowhead -->
+    <marker id="ah-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M0,1 L9,5 L0,9 Z" fill="#c82828" fill-opacity="0.8"/>
+    </marker>
+    <!-- Dim arrowhead -->
+    <marker id="ah-d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M0,1 L9,5 L0,9 Z" fill="#404040"/>
+    </marker>
+    <!-- Orange arrowhead -->
+    <marker id="ah-o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M0,1 L9,5 L0,9 Z" fill="#dc8200" fill-opacity="0.8"/>
+    </marker>
+  </defs>
+
+  <rect width="960" height="310" fill="#1a1a1a"/>
+
+  <!-- Panel dividers -->
+  <line x1="322" y1="0" x2="322" y2="310" stroke="#282828" stroke-width="1"/>
+  <line x1="642" y1="0" x2="642" y2="310" stroke="#282828" stroke-width="1"/>
+
+  <!-- ══════════════════ PANEL 1: NORMAL ══════════════════ -->
+  <g transform="translate(0,0)">
+    <!-- Title -->
+    <text x="161" y="24" text-anchor="middle" fill="#3db845"
+          font-family="ui-monospace,Consolas,monospace" font-size="11" font-weight="600" letter-spacing="0.08em">NORMAL</text>
+
+    <!-- Frontend node -->
+    <rect x="101" y="36" width="120" height="26" rx="4" fill="#202020" stroke="#383838"/>
+    <text x="161" y="53" text-anchor="middle" fill="#e8e8e8"
+          font-family="system-ui,sans-serif" font-size="11">Frontend</text>
+
+    <!-- NestJS node -->
+    <rect x="22" y="138" width="88" height="26" rx="4" fill="#202020" stroke="#3178c6" stroke-opacity="0.6"/>
+    <text x="66" y="155" text-anchor="middle" fill="#3178c6"
+          font-family="ui-monospace,Consolas,monospace" font-size="10" font-weight="500">NestJS</text>
+
+    <!-- FastAPI node -->
+    <rect x="212" y="138" width="88" height="26" rx="4" fill="#202020" stroke="#3d9bd4" stroke-opacity="0.6"/>
+    <text x="256" y="155" text-anchor="middle" fill="#3d9bd4"
+          font-family="ui-monospace,Consolas,monospace" font-size="10" font-weight="500">FastAPI</text>
+
+    <!-- Redis node -->
+    <rect x="121" y="240" width="80" height="24" rx="4" fill="#202020" stroke="#505050"/>
+    <text x="161" y="256" text-anchor="middle" fill="#707070"
+          font-family="ui-monospace,Consolas,monospace" font-size="10">Redis</text>
+
+    <!-- Frontend→NestJS: PATCH -->
+    <line x1="143" y1="62" x2="88" y2="138" stroke="#3db845" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#ah-g)"/>
+    <text x="98" y="99" fill="#3db845" fill-opacity="0.6" font-family="system-ui,sans-serif" font-size="9" text-anchor="middle">PATCH</text>
+
+    <!-- Frontend→FastAPI: PATCH -->
+    <line x1="179" y1="62" x2="234" y2="138" stroke="#3db845" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#ah-g)"/>
+    <text x="224" y="99" fill="#3db845" fill-opacity="0.6" font-family="system-ui,sans-serif" font-size="9" text-anchor="middle">PATCH</text>
+
+    <!-- NestJS→Frontend: WS -->
+    <line x1="74" y1="138" x2="130" y2="62" stroke="#3db845" stroke-opacity="0.45" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-g)"/>
+
+    <!-- FastAPI→Frontend: WS -->
+    <line x1="248" y1="138" x2="192" y2="62" stroke="#3db845" stroke-opacity="0.45" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-g)"/>
+
+    <!-- NestJS→Redis: PUBLISH -->
+    <line x1="84" y1="164" x2="133" y2="240" stroke="#3db845" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#ah-g)"/>
+    <text x="97" y="208" fill="#3db845" fill-opacity="0.6" font-family="system-ui,sans-serif" font-size="9">pub</text>
+
+    <!-- Redis→FastAPI: replicate -->
+    <line x1="189" y1="240" x2="238" y2="164" stroke="#3db845" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#ah-g)"/>
+    <text x="228" y="208" fill="#3db845" fill-opacity="0.6" font-family="system-ui,sans-serif" font-size="9">sub</text>
+
+    <!-- WS label -->
+    <text x="161" y="110" text-anchor="middle" fill="#3db845" fill-opacity="0.4" font-family="system-ui,sans-serif" font-size="9">WS</text>
+  </g>
+
+  <!-- ══════════════════ PANEL 2: AP PARTITION ══════════════════ -->
+  <g transform="translate(322,0)">
+    <!-- Title -->
+    <text x="161" y="24" text-anchor="middle" fill="#dc8200"
+          font-family="ui-monospace,Consolas,monospace" font-size="11" font-weight="600" letter-spacing="0.08em">AP PARTITION</text>
+
+    <!-- Frontend node -->
+    <rect x="101" y="36" width="120" height="26" rx="4" fill="#202020" stroke="#383838"/>
+    <text x="161" y="53" text-anchor="middle" fill="#e8e8e8"
+          font-family="system-ui,sans-serif" font-size="11">Frontend</text>
+
+    <!-- NestJS node -->
+    <rect x="22" y="138" width="88" height="26" rx="4" fill="#202020" stroke="#3178c6" stroke-opacity="0.6"/>
+    <text x="66" y="155" text-anchor="middle" fill="#3178c6"
+          font-family="ui-monospace,Consolas,monospace" font-size="10" font-weight="500">NestJS</text>
+
+    <!-- FastAPI node -->
+    <rect x="212" y="138" width="88" height="26" rx="4" fill="#202020" stroke="#3d9bd4" stroke-opacity="0.6"/>
+    <text x="256" y="155" text-anchor="middle" fill="#3d9bd4"
+          font-family="ui-monospace,Consolas,monospace" font-size="10" font-weight="500">FastAPI</text>
+
+    <!-- Redis node (dim) -->
+    <rect x="121" y="240" width="80" height="24" rx="4" fill="#202020" stroke="#303030"/>
+    <text x="161" y="256" text-anchor="middle" fill="#404040"
+          font-family="ui-monospace,Consolas,monospace" font-size="10">Redis</text>
+
+    <!-- Frontend→NestJS: PATCH (active) -->
+    <line x1="143" y1="62" x2="88" y2="138" stroke="#dc8200" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#ah-o)"/>
+    <text x="98" y="99" fill="#dc8200" fill-opacity="0.6" font-family="system-ui,sans-serif" font-size="9" text-anchor="middle">PATCH</text>
+
+    <!-- Frontend→FastAPI: PATCH (active) -->
+    <line x1="179" y1="62" x2="234" y2="138" stroke="#dc8200" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#ah-o)"/>
+    <text x="224" y="99" fill="#dc8200" fill-opacity="0.6" font-family="system-ui,sans-serif" font-size="9" text-anchor="middle">PATCH</text>
+
+    <!-- NestJS→Frontend: WS (active) -->
+    <line x1="74" y1="138" x2="130" y2="62" stroke="#dc8200" stroke-opacity="0.45" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-o)"/>
+
+    <!-- FastAPI→Frontend: WS (active) -->
+    <line x1="248" y1="138" x2="192" y2="62" stroke="#dc8200" stroke-opacity="0.45" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-o)"/>
+
+    <!-- NestJS→Redis: BROKEN -->
+    <line x1="84" y1="164" x2="133" y2="240" stroke="#c82828" stroke-opacity="0.5" stroke-width="1.5" stroke-dasharray="5,4"/>
+
+    <!-- Redis→FastAPI: BROKEN -->
+    <line x1="189" y1="240" x2="238" y2="164" stroke="#c82828" stroke-opacity="0.5" stroke-width="1.5" stroke-dasharray="5,4"/>
+
+    <!-- × symbol on Redis -->
+    <text x="155" y="258" text-anchor="middle" fill="#c82828" fill-opacity="0.8"
+          font-family="system-ui,sans-serif" font-size="13" font-weight="600">×</text>
+
+    <!-- Divergence label -->
+    <text x="161" y="286" text-anchor="middle" fill="#c82828" fill-opacity="0.6"
+          font-family="system-ui,sans-serif" font-size="9">replication suppressed</text>
+
+    <!-- WS label -->
+    <text x="161" y="110" text-anchor="middle" fill="#dc8200" fill-opacity="0.4" font-family="system-ui,sans-serif" font-size="9">WS</text>
+  </g>
+
+  <!-- ══════════════════ PANEL 3: CP PARTITION ══════════════════ -->
+  <g transform="translate(642,0)">
+    <!-- Title -->
+    <text x="161" y="24" text-anchor="middle" fill="#c82828"
+          font-family="ui-monospace,Consolas,monospace" font-size="11" font-weight="600" letter-spacing="0.08em">CP PARTITION</text>
+
+    <!-- Frontend node -->
+    <rect x="101" y="36" width="120" height="26" rx="4" fill="#202020" stroke="#383838"/>
+    <text x="161" y="53" text-anchor="middle" fill="#e8e8e8"
+          font-family="system-ui,sans-serif" font-size="11">Frontend</text>
+
+    <!-- NestJS node -->
+    <rect x="22" y="138" width="88" height="26" rx="4" fill="#202020" stroke="#3178c6" stroke-opacity="0.4"/>
+    <text x="66" y="155" text-anchor="middle" fill="#3178c6" fill-opacity="0.5"
+          font-family="ui-monospace,Consolas,monospace" font-size="10" font-weight="500">NestJS</text>
+
+    <!-- FastAPI node -->
+    <rect x="212" y="138" width="88" height="26" rx="4" fill="#202020" stroke="#3d9bd4" stroke-opacity="0.4"/>
+    <text x="256" y="155" text-anchor="middle" fill="#3d9bd4" fill-opacity="0.5"
+          font-family="ui-monospace,Consolas,monospace" font-size="10" font-weight="500">FastAPI</text>
+
+    <!-- Redis node (dim) -->
+    <rect x="121" y="240" width="80" height="24" rx="4" fill="#202020" stroke="#282828"/>
+    <text x="161" y="256" text-anchor="middle" fill="#383838"
+          font-family="ui-monospace,Consolas,monospace" font-size="10">Redis</text>
+
+    <!-- Frontend→NestJS: PATCH — REJECTED -->
+    <line x1="143" y1="62" x2="88" y2="138" stroke="#c82828" stroke-opacity="0.6" stroke-width="1.5" marker-end="url(#ah-r)"/>
+    <text x="95" y="96" fill="#c82828" fill-opacity="0.7" font-family="system-ui,sans-serif" font-size="9" text-anchor="middle">503</text>
+
+    <!-- Frontend→FastAPI: PATCH — REJECTED -->
+    <line x1="179" y1="62" x2="234" y2="138" stroke="#c82828" stroke-opacity="0.6" stroke-width="1.5" marker-end="url(#ah-r)"/>
+    <text x="227" y="96" fill="#c82828" fill-opacity="0.7" font-family="system-ui,sans-serif" font-size="9" text-anchor="middle">503</text>
+
+    <!-- NestJS→Frontend: WS reads (very dim, still works) -->
+    <line x1="74" y1="138" x2="130" y2="62" stroke="#404040" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-d)"/>
+    <line x1="248" y1="138" x2="192" y2="62" stroke="#404040" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-d)"/>
+
+    <!-- NestJS→Redis: dim (no writes to replicate) -->
+    <line x1="84" y1="164" x2="133" y2="240" stroke="#282828" stroke-width="1" stroke-dasharray="3,4"/>
+    <line x1="189" y1="240" x2="238" y2="164" stroke="#282828" stroke-width="1" stroke-dasharray="3,4"/>
+
+    <!-- 503 labels -->
+    <text x="161" y="110" text-anchor="middle" fill="#c82828" fill-opacity="0.4" font-family="system-ui,sans-serif" font-size="9">reads only</text>
+    <text x="161" y="286" text-anchor="middle" fill="#c82828" fill-opacity="0.6"
+          font-family="system-ui,sans-serif" font-size="9">writes rejected on both nodes</text>
+  </g>
+</svg>

@@ -19,6 +19,13 @@ html, body, #root {
   margin: 0;
 }
 
+html.about-view,
+html.about-view body,
+html.about-view #root {
+  height: auto;
+  min-height: 100%;
+}
+
 body {
   background: var(--bg);
   color: var(--text);

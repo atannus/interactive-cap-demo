@@ -1,5 +1,5 @@
 {
-  "name": "edu-over-engineering",
+  "name": "interactive-cap-demo",
   "private": true,
   "scripts": {
     "dev": "concurrently -n fe,ts,py -c cyan,blue,yellow \"pnpm dev:frontend\" \"pnpm dev:backend-ts\" \"pnpm dev:backend-py\"",

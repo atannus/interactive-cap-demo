@@ -8,6 +8,8 @@ A polyglot monorepo running two independent backends (NestJS + FastAPI) that mai
 
 ## The CAP theorem, briefly
 
+![CAP Theorem Triangle](docs/diagrams/cap-triangle.svg)
+
 The CAP theorem states that a distributed data system can provide at most two of three guarantees simultaneously:
 
 - **C — Consistency**: every read sees the most recent write (or an error)
@@ -50,6 +52,8 @@ An earlier candidate design kept the shared database for writes during normal op
 
 ## The replication channel
 
+![Architecture Data Flow](docs/diagrams/architecture-dataflow.svg)
+
 Under normal operation, every write follows this path:
 
 ```
@@ -61,6 +65,8 @@ Frontend PATCH → Backend A
     → writes value to its own table
     → broadcasts to its own WebSocket clients
 ```
+
+![Write Sequence](docs/diagrams/sequence-write-normal.svg)
 
 The **direct broadcast to own clients before publishing** is intentional. The writing backend is the leader for this write and should reflect it immediately without waiting for a Redis network round-trip. The other backend receives it asynchronously — this latency is visible and is part of the demonstration.
 

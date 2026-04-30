@@ -1,4 +1,4 @@
-# edu.over-engineering
+# interactive-cap-demo
 
 A polyglot monorepo for CAP theorem experiments. Two independent backends (NestJS + FastAPI) act as symmetric multi-leader nodes, each owning their own PostgreSQL table and staying in sync via Redis replication events. A React frontend shows each backend's live view of the shared state, lets you trigger AP or CP partitions, and walks you through reconciliation when the partition heals.
 
