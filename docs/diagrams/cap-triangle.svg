@@ -1,9 +1,10 @@
 <svg viewBox="0 0 540 470" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="CAP Theorem Triangle">
   <title>CAP Theorem Triangle</title>
-  <rect width="540" height="470" fill="#1a1a1a"/>
+  <style>#bg{fill:#2e2e2e}.tp{fill:#e8e8e8}@media(prefers-color-scheme:light){#bg{fill:#f0f0f0}.tp{fill:#111111}}</style>
+  <rect id="bg" width="540" height="470" fill="#2e2e2e"/>
 
   <!-- CA edge (left) — systems that ignore P: traditional RDBMS -->
-  <line x1="270" y1="72" x2="52" y2="418" stroke="#383838" stroke-width="1.5"/>
+  <line x1="270" y1="72" x2="52" y2="418" stroke="#4c4c4c" stroke-width="1.5"/>
 
   <!-- CP edge (right) — consistency over availability -->
   <line x1="270" y1="72" x2="488" y2="418" stroke="#c82828" stroke-width="2.5" stroke-opacity="0.75"/>
@@ -12,26 +13,26 @@
   <line x1="52" y1="418" x2="488" y2="418" stroke="#dc8200" stroke-width="2.5" stroke-opacity="0.75"/>
 
   <!-- Vertex dots -->
-  <circle cx="270" cy="72" r="5" fill="#e8e8e8"/>
-  <circle cx="52"  cy="418" r="5" fill="#e8e8e8"/>
-  <circle cx="488" cy="418" r="5" fill="#e8e8e8"/>
+  <circle cx="270" cy="72" r="5" class="tp" fill="#e8e8e8"/>
+  <circle cx="52"  cy="418" r="5" class="tp" fill="#e8e8e8"/>
+  <circle cx="488" cy="418" r="5" class="tp" fill="#e8e8e8"/>
 
   <!-- C — Consistency (top) -->
-  <text x="270" y="55" text-anchor="middle" fill="#e8e8e8"
+  <text x="270" y="55" text-anchor="middle" class="tp" fill="#e8e8e8"
         font-family="ui-monospace,Consolas,monospace" font-size="16" font-weight="600" letter-spacing="0.06em">C</text>
-  <text x="270" y="38" text-anchor="middle" fill="#606060"
+  <text x="270" y="38" text-anchor="middle" fill="#747474"
         font-family="system-ui,sans-serif" font-size="11">Consistency</text>
 
   <!-- A — Availability (bottom-left) -->
-  <text x="52" y="444" text-anchor="middle" fill="#e8e8e8"
+  <text x="52" y="444" text-anchor="middle" class="tp" fill="#e8e8e8"
         font-family="ui-monospace,Consolas,monospace" font-size="16" font-weight="600" letter-spacing="0.06em">A</text>
-  <text x="52" y="459" text-anchor="middle" fill="#606060"
+  <text x="52" y="459" text-anchor="middle" fill="#747474"
         font-family="system-ui,sans-serif" font-size="11">Availability</text>
 
   <!-- P — Partition Tolerance (bottom-right) -->
-  <text x="488" y="444" text-anchor="middle" fill="#e8e8e8"
+  <text x="488" y="444" text-anchor="middle" class="tp" fill="#e8e8e8"
         font-family="ui-monospace,Consolas,monospace" font-size="16" font-weight="600" letter-spacing="0.06em">P</text>
-  <text x="488" y="459" text-anchor="middle" fill="#606060"
+  <text x="488" y="459" text-anchor="middle" fill="#747474"
         font-family="system-ui,sans-serif" font-size="11">Partition Tolerance</text>
 
   <!-- CP mode marker — midpoint of CP edge: ((270+488)/2, (72+418)/2) = (379, 245) -->
@@ -49,7 +50,7 @@
         font-family="system-ui,sans-serif" font-size="10">writes diverge</text>
 
   <!-- Mandatory P note -->
-  <text x="270" y="20" text-anchor="middle" fill="#404040"
+  <text x="270" y="20" text-anchor="middle" fill="#545454"
         font-family="system-ui,sans-serif" font-size="10" letter-spacing="0.04em">
     Real networks partition — the choice is C or A
   </text>
