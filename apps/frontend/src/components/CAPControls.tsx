@@ -4,9 +4,9 @@ import { RedisDot } from './RedisDot'
 export function CAPControls() {
   const {
     capMode, demoMode, switchMode,
-    healingHeuristic, partitionDuration, autoPartitionMode,
+    healingHeuristic, autoPartitionMode,
     tsRedisConnected, pyRedisConnected,
-    setHealingHeuristic, setPartitionDuration, onAutoPartitionModeChange,
+    setHealingHeuristic, onAutoPartitionModeChange,
     onTrigger, onHeal,
   } = usePartition()
 
@@ -90,16 +90,6 @@ export function CAPControls() {
               <option value="ts-wins">NestJS always wins</option>
               <option value="py-wins">FastAPI always wins</option>
             </select>
-            <label className="cap-label">Auto-heal after</label>
-            <input
-              className="cap-duration-input"
-              type="number"
-              min="1"
-              placeholder="—"
-              value={partitionDuration}
-              onChange={e => setPartitionDuration(e.target.value)}
-            />
-            <span className="cap-label">s</span>
             <button className="cap-btn trigger-ap" onClick={() => onTrigger('AP')}>Trigger AP Partition</button>
             <button className="cap-btn trigger-cp" onClick={() => onTrigger('CP')}>Trigger CP Partition</button>
           </>

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { BackendStatus, CapMode, HealingHeuristic, LocalState } from '../types'
 import { TS_REST, PY_REST } from '../lib/config'
@@ -10,12 +10,10 @@ interface PartitionContextValue {
   partitionSource: 'manual' | 'auto'
   demoMode: boolean
   healingHeuristic: HealingHeuristic
-  partitionDuration: string
   autoPartitionMode: 'AP' | 'CP'
   tsRedisConnected: boolean | null
   pyRedisConnected: boolean | null
   setHealingHeuristic: (h: HealingHeuristic) => void
-  setPartitionDuration: (d: string) => void
   switchMode: () => void
   onTrigger: (mode: 'AP' | 'CP') => void
   onHeal: () => void
@@ -33,17 +31,11 @@ export function PartitionProvider({ children }: { children: ReactNode }) {
   const [capMode, setCapMode] = useState<CapMode>('normal')
   const [partitionSource, setPartitionSource] = useState<'manual' | 'auto'>('manual')
   const [healingHeuristic, setHealingHeuristic] = useState<HealingHeuristic>('lww')
-  const [partitionDuration, setPartitionDuration] = useState('')
   const [autoPartitionMode, setAutoPartitionMode] = useState<'AP' | 'CP'>('AP')
   const [tsStatus, setTsStatus] = useState<BackendStatus | null>(null)
   const [pyStatus, setPyStatus] = useState<BackendStatus | null>(null)
-  const autoHealTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const heal = useCallback(async (heuristic: HealingHeuristic) => {
-    if (autoHealTimer.current) {
-      clearTimeout(autoHealTimer.current)
-      autoHealTimer.current = null
-    }
     addEvent('Heal initiated — reading local state from both backends', 'info')
 
     const [tsRes, pyRes] = await Promise.all([
@@ -120,13 +112,7 @@ export function PartitionProvider({ children }: { children: ReactNode }) {
         : 'CP partition triggered — writes rejected on both backends',
       'warn',
     )
-
-    const secs = parseInt(partitionDuration, 10)
-    if (!isNaN(secs) && secs > 0) {
-      addEvent(`Auto-heal scheduled in ${secs}s`, 'info')
-      autoHealTimer.current = setTimeout(onHeal, secs * 1000)
-    }
-  }, [partitionDuration, addEvent, onHeal])
+  }, [addEvent])
 
   const onAutoPartitionModeChange = useCallback(async (mode: 'AP' | 'CP') => {
     setAutoPartitionMode(mode)
@@ -173,12 +159,10 @@ export function PartitionProvider({ children }: { children: ReactNode }) {
       partitionSource,
       demoMode,
       healingHeuristic,
-      partitionDuration,
       autoPartitionMode,
       tsRedisConnected: tsStatus?.redis.connected ?? null,
       pyRedisConnected: pyStatus?.redis.connected ?? null,
       setHealingHeuristic,
-      setPartitionDuration,
       switchMode,
       onTrigger,
       onHeal,
