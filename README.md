@@ -2,7 +2,7 @@
 
 A polyglot monorepo for CAP theorem experiments. Two independent backends (NestJS + FastAPI) act as symmetric multi-leader nodes, each owning their own PostgreSQL table and staying in sync via Redis replication events. A React frontend shows each backend's live view of the shared state, lets you trigger AP or CP partitions, and walks you through reconciliation when the partition heals.
 
-For the design rationale — why multi-leader, why separate tables, why the partition model works the way it does — see [ARCHITECTURE.md](./ARCHITECTURE.md).
+For the design rationale (why multi-leader, why separate tables, why the partition model works the way it does), see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ```
 Frontend (React/Vite :5173)
@@ -54,7 +54,7 @@ minikube tunnel  # separate terminal — maps LoadBalancer IPs to localhost
 
 ### After making code changes
 
-Because images are tagged `:latest` and `imagePullPolicy: Never`, Kubernetes won't detect that new code is available — you need to rebuild the image and explicitly restart the affected deployment(s).
+Because images are tagged `:latest` and `imagePullPolicy: Never`, Kubernetes won't detect that new code is available; you need to rebuild the image and explicitly restart the affected deployment(s).
 
 **One service changed** (e.g. only frontend):
 ```bash
@@ -94,7 +94,7 @@ This installs `kube-prometheus-stack`, `loki`, and `alloy` via Helm into the `mo
 
 ### Accessing Grafana
 
-With `minikube tunnel` running, Grafana is at **http://localhost:3000** — login `admin` / `admin`.
+With `minikube tunnel` running, Grafana is at **http://localhost:3000** (login: `admin` / `admin`).
 
 The **edu-oe App Metrics** dashboard is auto-imported and shows:
 - HTTP request rate and p95 latency per backend
@@ -102,7 +102,7 @@ The **edu-oe App Metrics** dashboard is auto-imported and shows:
 - Redis pub/sub message rates
 - Live logs from the `edu-oe` namespace
 
-The Loki datasource is provisioned automatically — no manual setup needed.
+The Loki datasource is provisioned automatically; no manual setup needed.
 
 ### Teardown
 

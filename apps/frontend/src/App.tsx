@@ -251,7 +251,7 @@ function AboutPage() {
       <div className="about-hero">
         <h1 className="about-title">An Interactive CAP Theorem Demo</h1>
         <p className="about-lead">
-          Two independent backends — NestJS (TypeScript) and FastAPI (Python) — each own their own
+          Two independent backends, NestJS (TypeScript) and FastAPI (Python), each own their own
           database table and replicate state through Redis pub/sub. You can trigger network partitions,
           watch the backends diverge or freeze depending on the consistency model, then heal the partition
           and observe reconciliation in real time.
@@ -262,7 +262,7 @@ function AboutPage() {
         <h2 className="about-section-title">The CAP Triangle</h2>
         <p className="about-section-desc">
           Every distributed system faces a forced choice when a partition occurs: sacrifice write availability
-          (CP) or sacrifice consistency (AP). P — partition tolerance — is mandatory in any real network.
+          (CP) or sacrifice consistency (AP). P (partition tolerance) is mandatory in any real network.
         </p>
         <div className="about-diagram about-diagram-narrow">
           <img src="/diagrams/cap-triangle.svg" alt="CAP theorem triangle showing CP and AP mode positions" />
@@ -280,7 +280,7 @@ function AboutPage() {
           </div>
           <div className="about-card about-card-ap">
             <div className="about-card-badge about-card-badge-ap">AP Partition</div>
-            <p>Replication is suppressed — no Redis events are published or consumed. Both backends
+            <p>Replication is suppressed: no Redis events are published or consumed. Both backends
             continue accepting writes. Drag each marker independently and watch them diverge. On heal,
             the chosen heuristic (LWW, NestJS-wins, or FastAPI-wins) picks the winner.</p>
           </div>
@@ -307,7 +307,7 @@ function AboutPage() {
         <h2 className="about-section-title">Normal Write Sequence</h2>
         <p className="about-section-desc">
           A single PATCH immediately updates the writing backend's WebSocket clients (step 3) before
-          the replication event reaches the other backend (step 7) — the latency gap is part of the demo.
+          the replication event reaches the other backend (step 7); the latency gap is part of the demo.
         </p>
         <div className="about-diagram">
           <img src="/diagrams/sequence-write-normal.svg" alt="Sequence diagram for a normal write flow" />
