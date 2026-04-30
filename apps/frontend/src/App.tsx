@@ -14,6 +14,11 @@ interface LocalState {
   source: 'ts' | 'py'
 }
 
+interface BackendStatus {
+  partition: { active: boolean; mode: 'AP' | 'CP'; source: 'manual' | 'auto' }
+  redis: { connected: boolean }
+}
+
 type HealingHeuristic = 'lww' | 'ts-wins' | 'py-wins'
 type CapMode = 'normal' | 'AP' | 'CP'
 type LogLevel = 'info' | 'warn' | 'error' | 'success'
@@ -39,6 +44,12 @@ function useDebounced<T extends unknown[]>(fn: (...args: T) => void, ms: number)
 
 function fmt(p: Position) {
   return `(${p.x.toFixed(3)}, ${p.y.toFixed(3)})`
+}
+
+function RedisDot({ connected }: { connected: boolean | null }) {
+  const cls = connected === null ? 'unknown' : connected ? 'connected' : 'disconnected'
+  const title = connected === null ? 'Redis: unknown' : connected ? 'Redis: connected' : 'Redis: disconnected'
+  return <span className={`redis-dot ${cls}`} title={title} />
 }
 
 // ── Event Log ─────────────────────────────────────────────────────────────────
@@ -67,34 +78,56 @@ function EventLog({ entries }: { entries: LogEntry[] }) {
 
 interface CAPControlsProps {
   capMode: CapMode
+  partitionSource: 'manual' | 'auto'
   healingHeuristic: HealingHeuristic
   partitionDuration: string
+  autoPartitionMode: 'AP' | 'CP'
+  tsRedisConnected: boolean | null
+  pyRedisConnected: boolean | null
   onHeuristicChange: (h: HealingHeuristic) => void
   onDurationChange: (d: string) => void
+  onAutoPartitionModeChange: (mode: 'AP' | 'CP') => void
   onTrigger: (mode: 'AP' | 'CP') => void
   onHeal: () => void
 }
 
 function CAPControls({
-  capMode, healingHeuristic, partitionDuration,
-  onHeuristicChange, onDurationChange, onTrigger, onHeal,
+  capMode, partitionSource, healingHeuristic, partitionDuration,
+  autoPartitionMode, tsRedisConnected, pyRedisConnected,
+  onHeuristicChange, onDurationChange, onAutoPartitionModeChange, onTrigger, onHeal,
 }: CAPControlsProps) {
   if (capMode !== 'normal') {
+    const isInfra = partitionSource === 'auto'
+    const bannerLabel = isInfra
+      ? `INFRA PARTITION / ${capMode}`
+      : `PARTITION ACTIVE / ${capMode}`
+
     return (
       <div className="cap-bar">
         <div className="cap-controls-row">
-          <span className={`partition-banner ${capMode.toLowerCase()}`}>
-            PARTITION ACTIVE / {capMode}
-          </span>
-          <button className="cap-btn heal" onClick={onHeal}>Heal Partition</button>
-          <span className="cap-heuristic-label">
-            on heal: {healingHeuristic === 'lww' ? 'last-write-wins' : healingHeuristic === 'ts-wins' ? 'NestJS wins' : 'FastAPI wins'}
-          </span>
+          <span className={`partition-banner ${capMode.toLowerCase()}`}>{bannerLabel}</span>
+          {isInfra ? (
+            <span className="cap-label">Auto-healing when Redis reconnects</span>
+          ) : (
+            <>
+              <button className="cap-btn heal" onClick={onHeal}>Heal Partition</button>
+              <span className="cap-heuristic-label">
+                on heal: {healingHeuristic === 'lww' ? 'last-write-wins' : healingHeuristic === 'ts-wins' ? 'NestJS wins' : 'FastAPI wins'}
+              </span>
+            </>
+          )}
+          <div className="cap-divider" />
+          <span className="cap-label">NestJS</span><RedisDot connected={tsRedisConnected} />
+          <span className="cap-label">FastAPI</span><RedisDot connected={pyRedisConnected} />
         </div>
         <p className="cap-desc">
           {capMode === 'AP'
-            ? 'Replication suppressed — both backends accept writes and will diverge.'
-            : 'Writes rejected on both backends — no divergence, no availability.'}
+            ? isInfra
+              ? 'Redis is down — replication severed. Both backends accept writes and will diverge.'
+              : 'Replication suppressed — both backends accept writes and will diverge.'
+            : isInfra
+              ? 'Redis is down — writes rejected on both backends. No divergence.'
+              : 'Writes rejected on both backends — no divergence, no availability.'}
         </p>
       </div>
     )
@@ -125,9 +158,23 @@ function CAPControls({
         <span className="cap-label">s</span>
         <button className="cap-btn trigger-ap" onClick={() => onTrigger('AP')}>Trigger AP Partition</button>
         <button className="cap-btn trigger-cp" onClick={() => onTrigger('CP')}>Trigger CP Partition</button>
+        <div className="cap-divider" />
+        <label className="cap-label">Redis-down mode</label>
+        <select
+          className="cap-select"
+          value={autoPartitionMode}
+          onChange={e => onAutoPartitionModeChange(e.target.value as 'AP' | 'CP')}
+        >
+          <option value="AP">AP (diverge)</option>
+          <option value="CP">CP (freeze)</option>
+        </select>
+        <div className="cap-divider" />
+        <span className="cap-label">NestJS</span><RedisDot connected={tsRedisConnected} />
+        <span className="cap-label">FastAPI</span><RedisDot connected={pyRedisConnected} />
       </div>
       <p className="cap-desc">
         AP: both backends stay available, markers will diverge. CP: writes rejected, markers frozen.
+        Redis-down mode configures behavior when the Redis service fails.
       </p>
     </div>
   )
@@ -141,16 +188,20 @@ interface BoxProps {
   wsUrl: string
   restUrl: string
   capMode: CapMode
+  redisConnected: boolean | null
   onWriteResult: (accepted: boolean, pos: Position) => void
   onWsUpdate: (pos: Position) => void
+  onStatus: (status: BackendStatus) => void
 }
 
-function PositionBox({ label, badge, wsUrl, restUrl, capMode, onWriteResult, onWsUpdate }: BoxProps) {
+function PositionBox({ label, badge, wsUrl, restUrl, capMode, redisConnected, onWriteResult, onWsUpdate, onStatus }: BoxProps) {
   const [pos, setPos] = useState<Position | null>(null)
   const [rejected, setRejected] = useState(false)
   const canvasRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
   const prevPos = useRef<Position | null>(null)
+  const onStatusRef = useRef(onStatus)
+  onStatusRef.current = onStatus
 
   const persist = useCallback(async (p: Position) => {
     try {
@@ -210,9 +261,13 @@ function PositionBox({ label, badge, wsUrl, restUrl, capMode, onWriteResult, onW
   useEffect(() => {
     const ws = new WebSocket(wsUrl)
     ws.onmessage = (e) => {
+      const data = JSON.parse(e.data)
+      if (data.type === 'status') {
+        onStatusRef.current(data as BackendStatus)
+        return
+      }
       if (dragging.current) return
-      const data = JSON.parse(e.data) as { x: number; y: number }
-      const p = { x: data.x, y: data.y }
+      const p = { x: data.x as number, y: data.y as number }
       setPos(p)
       onWsUpdate(p)
     }
@@ -227,6 +282,7 @@ function PositionBox({ label, badge, wsUrl, restUrl, capMode, onWriteResult, onW
       <div className="box-header">
         <span className={`box-badge ${badge}`}>{label}</span>
         <span className="box-title">{label === 'TypeScript' ? 'NestJS' : 'FastAPI'}</span>
+        <RedisDot connected={redisConnected} />
         <span className="box-coords">{pos ? `${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}` : '…'}</span>
         {capMode !== 'normal' && (
           <span className={`status-pill ${capMode.toLowerCase()}`}>
@@ -345,8 +401,12 @@ export default function App() {
   }, [isAbout])
 
   const [capMode, setCapMode] = useState<CapMode>('normal')
+  const [partitionSource, setPartitionSource] = useState<'manual' | 'auto'>('manual')
   const [healingHeuristic, setHealingHeuristic] = useState<HealingHeuristic>('lww')
   const [partitionDuration, setPartitionDuration] = useState('')
+  const [autoPartitionMode, setAutoPartitionMode] = useState<'AP' | 'CP'>('AP')
+  const [tsStatus, setTsStatus] = useState<BackendStatus | null>(null)
+  const [pyStatus, setPyStatus] = useState<BackendStatus | null>(null)
   const [eventLog, setEventLog] = useState<LogEntry[]>([])
   const logCounter = useRef(0)
   const autoHealTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -355,19 +415,7 @@ export default function App() {
     setEventLog(prev => [...prev, { id: logCounter.current++, ts: Date.now(), message, level }])
   }, [])
 
-  const onWriteResult = useCallback((backend: string) => (accepted: boolean, pos: Position) => {
-    if (accepted) {
-      addEvent(`Write accepted by ${backend}: ${fmt(pos)}`, 'info')
-    } else {
-      addEvent(`Write REJECTED by ${backend} (CP mode)`, 'error')
-    }
-  }, [addEvent])
-
-  const onWsUpdate = useCallback((backend: string) => (pos: Position) => {
-    addEvent(`Replication received by ${backend}: ${fmt(pos)}`, 'info')
-  }, [addEvent])
-
-  const onHeal = useCallback(async () => {
+  const heal = useCallback(async (heuristic: HealingHeuristic) => {
     if (autoHealTimer.current) {
       clearTimeout(autoHealTimer.current)
       autoHealTimer.current = null
@@ -391,14 +439,14 @@ export default function App() {
     } else {
       const tsT = new Date(tsRes.updated_at).getTime()
       const pyT = new Date(pyRes.updated_at).getTime()
-      if (healingHeuristic === 'lww') {
+      if (heuristic === 'lww') {
         winner = tsT >= pyT ? tsRes : pyRes
         const winnerName = tsT >= pyT ? 'NestJS' : 'FastAPI'
         addEvent(
           `LWW: NestJS ts=${tsRes.updated_at.slice(11, 23)} vs FastAPI ts=${pyRes.updated_at.slice(11, 23)} — ${winnerName} wins`,
           'success',
         )
-      } else if (healingHeuristic === 'ts-wins') {
+      } else if (heuristic === 'ts-wins') {
         winner = tsRes
         addEvent('Heuristic: NestJS wins', 'success')
       } else {
@@ -425,13 +473,16 @@ export default function App() {
     }
 
     setCapMode('normal')
-  }, [healingHeuristic, addEvent])
+  }, [addEvent])
+
+  const onHeal = useCallback(() => heal(healingHeuristic), [heal, healingHeuristic])
 
   const onTrigger = useCallback(async (mode: 'AP' | 'CP') => {
     await Promise.all([
       fetch(`${TS_REST}/admin/partition`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: true, mode }) }),
       fetch(`${PY_REST}/admin/partition`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: true, mode }) }),
     ])
+    setPartitionSource('manual')
     setCapMode(mode)
     addEvent(
       mode === 'AP'
@@ -447,10 +498,63 @@ export default function App() {
     }
   }, [partitionDuration, addEvent, onHeal])
 
+  const onAutoPartitionModeChange = useCallback(async (mode: 'AP' | 'CP') => {
+    setAutoPartitionMode(mode)
+    await Promise.all([
+      fetch(`${TS_REST}/admin/partition-config`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autoMode: mode }) }),
+      fetch(`${PY_REST}/admin/partition-config`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autoMode: mode }) }),
+    ])
+  }, [])
+
+  const onWriteResult = useCallback((backend: string) => (accepted: boolean, pos: Position) => {
+    if (accepted) {
+      addEvent(`Write accepted by ${backend}: ${fmt(pos)}`, 'info')
+    } else {
+      addEvent(`Write REJECTED by ${backend} (CP mode)`, 'error')
+    }
+  }, [addEvent])
+
+  const onWsUpdate = useCallback((backend: string) => (pos: Position) => {
+    addEvent(`Replication received by ${backend}: ${fmt(pos)}`, 'info')
+  }, [addEvent])
+
+  const onStatus = useCallback((backend: 'ts' | 'py') => (status: BackendStatus) => {
+    if (backend === 'ts') setTsStatus(status)
+    else setPyStatus(status)
+  }, [])
+
+  // Detect infrastructure partition: either node losing Redis means replication is severed
+  useEffect(() => {
+    if (!tsStatus || !pyStatus) return
+    if (capMode !== 'normal') return
+    const tsAuto = tsStatus.partition.active && tsStatus.partition.source === 'auto'
+    const pyAuto = pyStatus.partition.active && pyStatus.partition.source === 'auto'
+    if (tsAuto || pyAuto) {
+      const mode = (tsAuto ? tsStatus : pyStatus).partition.mode
+      setCapMode(mode)
+      setPartitionSource('auto')
+      addEvent(`Infrastructure partition detected — Redis down, ${mode} mode active`, 'warn')
+    }
+  }, [tsStatus, pyStatus, capMode, addEvent])
+
+  // Auto-heal when Redis comes back after an infrastructure partition
+  useEffect(() => {
+    if (partitionSource !== 'auto') return
+    if (capMode === 'normal') return
+    if (!tsStatus || !pyStatus) return
+    if (tsStatus.partition.active || pyStatus.partition.active) return
+    if (!tsStatus.redis.connected || !pyStatus.redis.connected) return
+    addEvent('Redis reconnected — auto-healing with last-write-wins', 'info')
+    setPartitionSource('manual')
+    heal('lww')
+  }, [tsStatus, pyStatus, partitionSource, capMode, addEvent, heal])
+
   const tsWriteResult = useCallback(onWriteResult('NestJS'), [onWriteResult])
   const pyWriteResult = useCallback(onWriteResult('FastAPI'), [onWriteResult])
   const tsWsUpdate   = useCallback(onWsUpdate('NestJS'), [onWsUpdate])
   const pyWsUpdate   = useCallback(onWsUpdate('FastAPI'), [onWsUpdate])
+  const tsOnStatus   = useCallback(onStatus('ts'), [onStatus])
+  const pyOnStatus   = useCallback(onStatus('py'), [onStatus])
 
   return (
     <div className="layout">
@@ -470,10 +574,15 @@ export default function App() {
         <>
           <CAPControls
             capMode={capMode}
+            partitionSource={partitionSource}
             healingHeuristic={healingHeuristic}
             partitionDuration={partitionDuration}
+            autoPartitionMode={autoPartitionMode}
+            tsRedisConnected={tsStatus?.redis.connected ?? null}
+            pyRedisConnected={pyStatus?.redis.connected ?? null}
             onHeuristicChange={setHealingHeuristic}
             onDurationChange={setPartitionDuration}
+            onAutoPartitionModeChange={onAutoPartitionModeChange}
             onTrigger={onTrigger}
             onHeal={onHeal}
           />
@@ -484,8 +593,10 @@ export default function App() {
               wsUrl="ws://localhost:3001/ws"
               restUrl={`${TS_REST}/position`}
               capMode={capMode}
+              redisConnected={tsStatus?.redis.connected ?? null}
               onWriteResult={tsWriteResult}
               onWsUpdate={tsWsUpdate}
+              onStatus={tsOnStatus}
             />
             <PositionBox
               label="Python"
@@ -493,8 +604,10 @@ export default function App() {
               wsUrl="ws://localhost:8000/ws"
               restUrl={`${PY_REST}/position`}
               capMode={capMode}
+              redisConnected={pyStatus?.redis.connected ?? null}
               onWriteResult={pyWriteResult}
               onWsUpdate={pyWsUpdate}
+              onStatus={pyOnStatus}
             />
           </main>
           <EventLog entries={eventLog} />
