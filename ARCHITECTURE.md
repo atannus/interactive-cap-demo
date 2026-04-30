@@ -74,7 +74,7 @@ Both backends reject writes with HTTP 503. No new data is written to either tabl
 
 ### Why both backends participate in the partition simultaneously
 
-In a real network partition, *all* nodes are affected: a partition splits the cluster, it does not selectively affect one node. Activating the partition on one backend only would produce asymmetric behavior that does not reflect reality. The frontend sends the activation to both backends in parallel so both enter the partitioned state together. In the infrastructure partition mode this symmetry is natural: both backends lose Redis connectivity at the same moment.
+In a real network partition, *all* nodes are affected: a partition splits the cluster, it does not selectively affect one node. Activating the partition on one backend only would produce asymmetric behavior that does not reflect reality. The frontend sends the activation to both backends in parallel so both enter the partitioned state together. In the infrastructure partition mode, symmetry emerges from the infrastructure rather than coordination: when Redis goes down, both backends independently lose connectivity to it. Detection timing differs — NestJS reacts within milliseconds via connection error events; FastAPI's async subscriber takes a few seconds longer — but the frontend enters partition mode as soon as either node detects the loss, because replication is severed the moment the first node can no longer reach Redis.
 
 ## Healing and reconciliation
 
@@ -112,7 +112,7 @@ The frontend has two `PositionBox` components, one connected to each backend. Un
 
 An event log panel narrates every event in the session: partition activation, write acceptances and rejections, replication suppression, heal initiation, heuristic decision, and reconciliation outcome. This makes the demo self-explanatory without requiring the presenter to narrate everything verbally.
 
-Each backend also exposes a `GET /admin/status` endpoint that reports the current partition state and Redis connection health. The frontend polls this and shows a per-backend Redis health indicator, enabling the infrastructure partition mode to be demonstrated without any manual flag-setting.
+Each backend also exposes a `GET /admin/status` endpoint that reports the current partition state and Redis connection health. The frontend receives status updates via the existing WebSocket connection (each backend pushes a status message on connect and on any state change) and shows a per-backend Redis health indicator, enabling the infrastructure partition mode to be demonstrated without any manual flag-setting.
 
 ## What this project does not demonstrate
 
