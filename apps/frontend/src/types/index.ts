@@ -25,3 +25,5 @@ export interface LogEntry {
   message: string
   level: LogLevel
 }
+
+export type Theme = 'dark' | 'light' | 'system'

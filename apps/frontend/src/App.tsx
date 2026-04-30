@@ -1,17 +1,32 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import './App.css'
+import type { Theme } from './types'
 import { EventLogProvider } from './context/EventLogContext'
 import { PartitionProvider } from './context/PartitionContext'
+import { ThemeToggle } from './components/ThemeToggle'
 import { CAPControls } from './components/CAPControls'
 import { PositionBox } from './components/PositionBox'
 import { EventLog } from './components/EventLog'
+import { InfoPane } from './components/InfoPane'
 import { AboutPage } from './components/AboutPage'
 import { TS_REST, PY_REST } from './lib/config'
 
 export default function App() {
   const { pathname } = useLocation()
   const isAbout = pathname === '/about'
+
+  const [theme, setTheme] = useState<Theme>(
+    () => (localStorage.getItem('theme') as Theme | null) ?? 'system'
+  )
+
+  useEffect(() => {
+    const html = document.documentElement
+    html.classList.remove('theme-dark', 'theme-light')
+    if (theme === 'dark') html.classList.add('theme-dark')
+    else if (theme === 'light') html.classList.add('theme-light')
+    localStorage.setItem('theme', theme)
+  }, [theme])
 
   useEffect(() => {
     document.documentElement.classList.toggle('about-view', isAbout)
@@ -31,26 +46,30 @@ export default function App() {
               <Link to="/" className={!isAbout ? 'active' : ''}>App</Link>
               <Link to="/about" className={isAbout ? 'active' : ''}>About</Link>
             </nav>
+            <ThemeToggle theme={theme} onChange={setTheme} />
           </header>
           {isAbout ? (
             <AboutPage />
           ) : (
             <>
               <CAPControls />
-              <main className="main">
-                <PositionBox
-                  label="TypeScript"
-                  badge="ts"
-                  wsUrl="ws://localhost:3001/ws"
-                  restUrl={`${TS_REST}/position`}
-                />
-                <PositionBox
-                  label="Python"
-                  badge="py"
-                  wsUrl="ws://localhost:8000/ws"
-                  restUrl={`${PY_REST}/position`}
-                />
-              </main>
+              <div className="workspace">
+                <main className="main">
+                  <PositionBox
+                    label="TypeScript"
+                    badge="ts"
+                    wsUrl="ws://localhost:3001/ws"
+                    restUrl={`${TS_REST}/position`}
+                  />
+                  <PositionBox
+                    label="Python"
+                    badge="py"
+                    wsUrl="ws://localhost:8000/ws"
+                    restUrl={`${PY_REST}/position`}
+                  />
+                </main>
+                <InfoPane />
+              </div>
               <EventLog />
             </>
           )}

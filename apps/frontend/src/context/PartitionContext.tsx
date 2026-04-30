@@ -8,6 +8,7 @@ import { useEventLog } from './EventLogContext'
 interface PartitionContextValue {
   capMode: CapMode
   partitionSource: 'manual' | 'auto'
+  demoMode: boolean
   healingHeuristic: HealingHeuristic
   partitionDuration: string
   autoPartitionMode: 'AP' | 'CP'
@@ -15,6 +16,7 @@ interface PartitionContextValue {
   pyRedisConnected: boolean | null
   setHealingHeuristic: (h: HealingHeuristic) => void
   setPartitionDuration: (d: string) => void
+  switchMode: () => void
   onTrigger: (mode: 'AP' | 'CP') => void
   onHeal: () => void
   onAutoPartitionModeChange: (mode: 'AP' | 'CP') => void
@@ -27,6 +29,7 @@ const PartitionContext = createContext<PartitionContextValue | null>(null)
 export function PartitionProvider({ children }: { children: ReactNode }) {
   const { addEvent } = useEventLog()
 
+  const [demoMode, setDemoMode] = useState(true)
   const [capMode, setCapMode] = useState<CapMode>('normal')
   const [partitionSource, setPartitionSource] = useState<'manual' | 'auto'>('manual')
   const [healingHeuristic, setHealingHeuristic] = useState<HealingHeuristic>('lww')
@@ -98,6 +101,12 @@ export function PartitionProvider({ children }: { children: ReactNode }) {
 
   const onHeal = useCallback(() => heal(healingHeuristic), [heal, healingHeuristic])
 
+  // Mode switching is only allowed when no partition is active
+  const switchMode = useCallback(() => {
+    if (capMode !== 'normal') return
+    setDemoMode(prev => !prev)
+  }, [capMode])
+
   const onTrigger = useCallback(async (mode: 'AP' | 'CP') => {
     await Promise.all([
       fetch(`${TS_REST}/admin/partition`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: true, mode }) }),
@@ -130,8 +139,9 @@ export function PartitionProvider({ children }: { children: ReactNode }) {
   const onTsStatus = useCallback((status: BackendStatus) => setTsStatus(status), [])
   const onPyStatus = useCallback((status: BackendStatus) => setPyStatus(status), [])
 
-  // Detect infrastructure partition: either node losing Redis means replication is severed
+  // Infra-detection: only active in Infrastructure mode
   useEffect(() => {
+    if (demoMode) return
     if (!tsStatus || !pyStatus) return
     if (capMode !== 'normal') return
     const tsAuto = tsStatus.partition.active && tsStatus.partition.source === 'auto'
@@ -142,10 +152,11 @@ export function PartitionProvider({ children }: { children: ReactNode }) {
       setPartitionSource('auto')
       addEvent(`Infrastructure partition detected — Redis down, ${mode} mode active`, 'warn')
     }
-  }, [tsStatus, pyStatus, capMode, addEvent])
+  }, [tsStatus, pyStatus, capMode, demoMode, addEvent])
 
-  // Auto-heal when Redis comes back after an infrastructure partition
+  // Auto-heal when Redis reconnects: only active in Infrastructure mode
   useEffect(() => {
+    if (demoMode) return
     if (partitionSource !== 'auto') return
     if (capMode === 'normal') return
     if (!tsStatus || !pyStatus) return
@@ -154,12 +165,13 @@ export function PartitionProvider({ children }: { children: ReactNode }) {
     addEvent('Redis reconnected — auto-healing with last-write-wins', 'info')
     setPartitionSource('manual')
     heal('lww')
-  }, [tsStatus, pyStatus, partitionSource, capMode, addEvent, heal])
+  }, [tsStatus, pyStatus, partitionSource, capMode, demoMode, addEvent, heal])
 
   return (
     <PartitionContext.Provider value={{
       capMode,
       partitionSource,
+      demoMode,
       healingHeuristic,
       partitionDuration,
       autoPartitionMode,
@@ -167,6 +179,7 @@ export function PartitionProvider({ children }: { children: ReactNode }) {
       pyRedisConnected: pyStatus?.redis.connected ?? null,
       setHealingHeuristic,
       setPartitionDuration,
+      switchMode,
       onTrigger,
       onHeal,
       onAutoPartitionModeChange,
