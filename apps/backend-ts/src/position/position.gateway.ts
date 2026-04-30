@@ -29,6 +29,20 @@ export class PositionGateway implements OnModuleInit, OnModuleDestroy {
       port: this.config.get<number>('REDIS_PORT', 6379),
     });
 
+    this.subscriber.on('error', () => {
+      if (this.partition.redisConnected) {
+        this.partition.onRedisDisconnect();
+        this.broadcastStatus();
+      }
+    });
+
+    this.subscriber.on('ready', () => {
+      if (!this.partition.redisConnected) {
+        this.partition.onRedisReconnect();
+        this.broadcastStatus();
+      }
+    });
+
     this.subscriber.subscribe(REPLICATION_CHANNEL);
     this.subscriber.on('message', async (_channel: string, message: string) => {
       if (this.partition.active) return;
@@ -48,6 +62,10 @@ export class PositionGateway implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  broadcastStatus(): void {
+    this.broadcast({ type: 'status', ...this.partition.getStatus() });
+  }
+
   onModuleDestroy() {
     this.subscriber.disconnect();
     this.wss.close();
@@ -57,6 +75,7 @@ export class PositionGateway implements OnModuleInit, OnModuleDestroy {
     this.wss.handleUpgrade(req, socket, head, (ws) => {
       this.metrics.wsConnectionsActive.inc();
       ws.on('close', () => this.metrics.wsConnectionsActive.dec());
+      ws.send(JSON.stringify({ type: 'status', ...this.partition.getStatus() }));
       this.wss.emit('connection', ws, req);
     });
   }

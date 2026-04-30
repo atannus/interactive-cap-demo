@@ -59,6 +59,9 @@ clients: set[WebSocket] = set()
 
 partition_active: bool = False
 partition_mode: str = "AP"  # "AP" | "CP"
+partition_source: str = "manual"  # "manual" | "auto"
+auto_partition_mode: str = "AP"
+redis_connected: bool = True
 
 ws_connections_active = Gauge("ws_connections_active", "Active WebSocket connections")
 redis_messages_published_total = Counter("redis_messages_published_total", "Redis messages published")
@@ -66,7 +69,6 @@ redis_messages_received_total = Counter("redis_messages_received_total", "Redis 
 
 
 async def broadcast(payload: dict) -> None:
-    """Send a position update to all connected WebSocket clients."""
     text_data = json.dumps(payload)
     dead = set()
     for ws in clients:
@@ -77,8 +79,15 @@ async def broadcast(payload: dict) -> None:
     clients.difference_update(dead)
 
 
+async def broadcast_status() -> None:
+    await broadcast({
+        "type": "status",
+        "partition": {"active": partition_active, "mode": partition_mode, "source": partition_source},
+        "redis": {"connected": redis_connected},
+    })
+
+
 async def apply_replication(x: float, y: float, updated_at_str: str) -> None:
-    """Apply an incoming replication event from NestJS to positions_py and broadcast."""
     ts = datetime.fromisoformat(updated_at_str)
     async with AsyncSessionLocal() as session:
         await session.execute(
@@ -97,22 +106,51 @@ async def apply_replication(x: float, y: float, updated_at_str: str) -> None:
 
 
 async def redis_subscriber():
-    r = aioredis.Redis(host=REDIS_HOST, port=REDIS_PORT)
-    pubsub = r.pubsub()
-    await pubsub.subscribe(REPLICATION_CHANNEL)
-    async for message in pubsub.listen():
-        if message["type"] != "message":
-            continue
-        if partition_active:
-            continue
-        data = message["data"]
-        if isinstance(data, bytes):
-            data = data.decode()
-        event = json.loads(data)
-        if event.get("source") == "py":
-            continue  # discard own replication events to avoid loops
-        redis_messages_received_total.inc()
-        await apply_replication(event["x"], event["y"], event["updated_at"])
+    global redis_connected, partition_active, partition_mode, partition_source
+    while True:
+        r = None
+        try:
+            r = aioredis.Redis(host=REDIS_HOST, port=REDIS_PORT, socket_connect_timeout=2)
+            pubsub = r.pubsub()
+            await pubsub.subscribe(REPLICATION_CHANNEL)
+
+            was_disconnected = not redis_connected
+            redis_connected = True
+            if was_disconnected:
+                if partition_source == "auto":
+                    partition_active = False
+                    partition_source = "manual"
+                await broadcast_status()
+
+            async for message in pubsub.listen():
+                if message["type"] != "message":
+                    continue
+                if partition_active:
+                    continue
+                data = message["data"]
+                if isinstance(data, bytes):
+                    data = data.decode()
+                event = json.loads(data)
+                if event.get("source") == "py":
+                    continue
+                redis_messages_received_total.inc()
+                await apply_replication(event["x"], event["y"], event["updated_at"])
+        except Exception:
+            was_connected = redis_connected
+            redis_connected = False
+            if was_connected:
+                if not partition_active:
+                    partition_active = True
+                    partition_mode = auto_partition_mode
+                    partition_source = "auto"
+                await broadcast_status()
+            await asyncio.sleep(1)
+        finally:
+            if r is not None:
+                try:
+                    await r.aclose()
+                except Exception:
+                    pass
 
 
 @asynccontextmanager
@@ -156,12 +194,32 @@ class PartitionBody(BaseModel):
     mode: str
 
 
+class PartitionConfigBody(BaseModel):
+    autoMode: str
+
+
 @app.post("/admin/partition")
 async def set_partition(body: PartitionBody):
-    global partition_active, partition_mode
+    global partition_active, partition_mode, partition_source
     partition_active = body.active
     partition_mode = body.mode
-    return {"active": partition_active, "mode": partition_mode}
+    partition_source = "manual"
+    return {"active": partition_active, "mode": partition_mode, "source": partition_source}
+
+
+@app.post("/admin/partition-config")
+async def set_partition_config(body: PartitionConfigBody):
+    global auto_partition_mode
+    auto_partition_mode = body.autoMode
+    return {"autoMode": auto_partition_mode}
+
+
+@app.get("/admin/status")
+async def get_status():
+    return {
+        "partition": {"active": partition_active, "mode": partition_mode, "source": partition_source},
+        "redis": {"connected": redis_connected},
+    }
 
 
 @app.get("/admin/local-state")
@@ -209,10 +267,13 @@ async def update_position(body: PositionBody):
     payload = {"x": body.x, "y": body.y, "updated_at": now.isoformat()}
     await broadcast(payload)
     if not partition_active:
-        r = aioredis.Redis(host=REDIS_HOST, port=REDIS_PORT)
-        await r.publish(REPLICATION_CHANNEL, json.dumps({"source": "py", **payload}))
-        redis_messages_published_total.inc()
-        await r.aclose()
+        try:
+            r = aioredis.Redis(host=REDIS_HOST, port=REDIS_PORT, socket_connect_timeout=1)
+            await r.publish(REPLICATION_CHANNEL, json.dumps({"source": "py", **payload}))
+            redis_messages_published_total.inc()
+            await r.aclose()
+        except Exception:
+            pass
     return payload
 
 
@@ -222,6 +283,11 @@ async def websocket_endpoint(ws: WebSocket):
     clients.add(ws)
     ws_connections_active.inc()
     try:
+        await ws.send_text(json.dumps({
+            "type": "status",
+            "partition": {"active": partition_active, "mode": partition_mode, "source": partition_source},
+            "redis": {"connected": redis_connected},
+        }))
         while True:
             await ws.receive_text()  # keep connection alive
     except WebSocketDisconnect:

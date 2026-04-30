@@ -34,8 +34,12 @@ export class PositionService {
     const payload = { x, y, updated_at: now.toISOString() };
     this.gateway.broadcast(payload);
     if (!this.partition.active) {
-      await this.redis.publish(REPLICATION_CHANNEL, JSON.stringify({ source: 'ts', ...payload }));
-      this.metrics.redisPublishedTotal.inc();
+      try {
+        await this.redis.publish(REPLICATION_CHANNEL, JSON.stringify({ source: 'ts', ...payload }));
+        this.metrics.redisPublishedTotal.inc();
+      } catch {
+        // Redis unavailable; subscriber error handler will update partition state
+      }
     }
     return { data_id: dataId, x, y, updated_at: now } as Position;
   }

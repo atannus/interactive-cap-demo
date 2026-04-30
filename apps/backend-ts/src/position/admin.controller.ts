@@ -7,6 +7,10 @@ class PartitionDto {
   mode: PartitionMode;
 }
 
+class PartitionConfigDto {
+  autoMode: PartitionMode;
+}
+
 const DATA_ID = '1';
 
 @Controller('admin')
@@ -21,6 +25,18 @@ export class AdminController {
   set(@Body() dto: PartitionDto) {
     this.partition.set(dto.active, dto.mode);
     return { active: dto.active, mode: dto.mode };
+  }
+
+  @Post('partition-config')
+  @HttpCode(200)
+  setConfig(@Body() dto: PartitionConfigDto) {
+    this.partition.setAutoMode(dto.autoMode);
+    return { autoMode: dto.autoMode };
+  }
+
+  @Get('status')
+  status() {
+    return this.partition.getStatus();
   }
 
   @Get('local-state')
