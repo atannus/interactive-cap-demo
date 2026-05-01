@@ -6,6 +6,8 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY apps/frontend/package.json ./apps/frontend/
 RUN pnpm install --frozen-lockfile --filter frontend...
 COPY apps/frontend ./apps/frontend
+ARG VITE_BACKEND_TS_URL
+ARG VITE_BACKEND_PY_URL
 RUN pnpm --filter frontend build
 
 # Stage 2: runtime

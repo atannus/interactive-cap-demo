@@ -10,7 +10,7 @@ import { PositionBox } from './components/PositionBox'
 import { EventLog } from './components/EventLog'
 import { InfoPane } from './components/InfoPane'
 import { AboutPage } from './components/AboutPage'
-import { TS_REST, PY_REST } from './lib/config'
+import { TS_REST, PY_REST, TS_WS, PY_WS } from './lib/config'
 
 export default function App() {
   const { pathname } = useLocation()
@@ -57,12 +57,12 @@ export default function App() {
                 <main className="main">
                   <PositionBox
                     badge="ts"
-                    wsUrl="ws://localhost:3001/ws"
+                    wsUrl={`${TS_WS}/ws`}
                     restUrl={`${TS_REST}/position`}
                   />
                   <PositionBox
                     badge="py"
-                    wsUrl="ws://localhost:8000/ws"
+                    wsUrl={`${PY_WS}/ws`}
                     restUrl={`${PY_REST}/position`}
                   />
                 </main>
