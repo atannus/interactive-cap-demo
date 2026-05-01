@@ -10,8 +10,33 @@
   --text-bright: #e8e8e8;
   --accent-ts: #3178c6;
   --accent-py: #3d9bd4;
+  --diagram-bg: #2e2e2e;
   --mono: ui-monospace, 'Cascadia Code', Consolas, monospace;
   --sans: system-ui, -apple-system, sans-serif;
+}
+
+html.theme-light {
+  --bg: #f4f4f5;
+  --surface: #ffffff;
+  --border: #e4e4e7;
+  --text: #52525b;
+  --text-bright: #18181b;
+  --accent-ts: #2563eb;
+  --accent-py: #0284c7;
+  --diagram-bg: #f0f0f0;
+}
+
+@media (prefers-color-scheme: light) {
+  html:not(.theme-dark):not(.theme-light) {
+    --bg: #f4f4f5;
+    --surface: #ffffff;
+    --border: #e4e4e7;
+    --text: #52525b;
+    --text-bright: #18181b;
+    --accent-ts: #2563eb;
+    --accent-py: #0284c7;
+    --diagram-bg: #f0f0f0;
+  }
 }
 
 html, body, #root {

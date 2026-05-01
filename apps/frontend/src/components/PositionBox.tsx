@@ -7,15 +7,14 @@ import { usePartition } from '../context/PartitionContext'
 import { RedisDot } from './RedisDot'
 
 interface PositionBoxProps {
-  label: string
   badge: 'ts' | 'py'
   wsUrl: string
   restUrl: string
 }
 
-export function PositionBox({ label, badge, wsUrl, restUrl }: PositionBoxProps) {
+export function PositionBox({ badge, wsUrl, restUrl }: PositionBoxProps) {
   const { addEvent } = useEventLog()
-  const { capMode, tsRedisConnected, pyRedisConnected, onTsStatus, onPyStatus } = usePartition()
+  const { capMode, partitionSource, tsRedisConnected, pyRedisConnected, onTsStatus, onPyStatus } = usePartition()
 
   const redisConnected = badge === 'ts' ? tsRedisConnected : pyRedisConnected
   const onStatus = badge === 'ts' ? onTsStatus : onPyStatus
@@ -106,15 +105,15 @@ export function PositionBox({ label, badge, wsUrl, restUrl }: PositionBoxProps) 
   return (
     <div className="position-box">
       <div className="box-header">
-        <span className={`box-badge ${badge}`}>{label}</span>
-        <span className="box-title">{label === 'TypeScript' ? 'NestJS' : 'FastAPI'}</span>
-        <RedisDot connected={redisConnected} />
-        <span className="box-coords">{pos ? `${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}` : '…'}</span>
+        <RedisDot connected={capMode !== 'normal' && partitionSource === 'manual' ? false : redisConnected} />
+        <span className="box-title">{backendName}</span>
+        <span className={`box-badge ${badge}`}>{badge}</span>
         {capMode !== 'normal' && (
           <span className={`status-pill ${capMode.toLowerCase()}`}>
             {capMode === 'AP' ? 'PARTITIONED / AP' : 'PARTITIONED / CP'}
           </span>
         )}
+        <span className="box-coords">{pos ? `${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}` : '…'}</span>
       </div>
       <div className={`box-canvas${rejected ? ' rejected-flash' : ''}`} ref={canvasRef}>
         <div className="crosshair-h" />
