@@ -3,115 +3,77 @@ import { RedisDot } from './RedisDot'
 
 export function CAPControls() {
   const {
-    capMode, demoMode, switchMode,
+    capMode, partitionSource,
     healingHeuristic, autoPartitionMode,
     tsRedisConnected, pyRedisConnected,
-    setHealingHeuristic, onAutoPartitionModeChange,
+    setHealingHeuristic, onPartitionModeChange,
     onTrigger, onHeal,
   } = usePartition()
 
   const partitioned = capMode !== 'normal'
 
-  const modeSegment = (
-    <div className="mode-segment">
-      <button
-        className={`mode-pill${demoMode ? ' active' : ''}`}
-        onClick={switchMode}
-        disabled={partitioned}
-        title={partitioned ? 'Resolve the active partition before switching modes' : undefined}
-      >Demo</button>
-      <button
-        className={`mode-pill${!demoMode ? ' active' : ''}`}
-        onClick={switchMode}
-        disabled={partitioned}
-        title={partitioned ? 'Resolve the active partition before switching modes' : undefined}
-      >Infrastructure</button>
-    </div>
-  )
-
-  const redisDots = (
-    <>
-      <div className="cap-divider" />
-      <span className="cap-label">NestJS</span><RedisDot connected={tsRedisConnected} />
-      <span className="cap-label">FastAPI</span><RedisDot connected={pyRedisConnected} />
-    </>
-  )
-
-  if (partitioned) {
-    const bannerLabel = demoMode
-      ? `PARTITION ACTIVE / ${capMode}`
-      : `INFRA PARTITION / ${capMode}`
-
-    return (
-      <div className="cap-bar">
-        <div className="cap-controls-row">
-          {modeSegment}
-          <div className="cap-divider" />
-          <span className={`partition-banner ${capMode.toLowerCase()}`}>{bannerLabel}</span>
-          {demoMode ? (
-            <>
-              <button className="cap-btn heal" onClick={onHeal}>Heal Partition</button>
-              <span className="cap-heuristic-label">
-                on heal: {healingHeuristic === 'lww' ? 'last-write-wins' : healingHeuristic === 'ts-wins' ? 'NestJS wins' : 'FastAPI wins'}
-              </span>
-            </>
-          ) : (
-            <span className="cap-label">Auto-healing when Redis reconnects</span>
-          )}
-          {redisDots}
-        </div>
-        <p className="cap-desc">
-          {capMode === 'AP'
-            ? demoMode
-              ? 'Replication suppressed — both backends accept writes and will diverge.'
-              : 'Redis is down — replication severed. Both backends accept writes and will diverge.'
-            : demoMode
-              ? 'Writes rejected on both backends — no divergence, no availability.'
-              : 'Redis is down — writes rejected on both backends. No divergence.'}
-        </p>
-      </div>
-    )
-  }
+  const healLabel =
+    healingHeuristic === 'lww' ? 'last write wins' :
+    healingHeuristic === 'ts-wins' ? 'NestJS wins' : 'FastAPI wins'
 
   return (
     <div className="cap-bar">
       <div className="cap-controls-row">
-        {modeSegment}
+        <div className="mode-segment">
+          <button
+            className={`mode-pill${autoPartitionMode === 'AP' ? ' active' : ''}`}
+            onClick={() => onPartitionModeChange('AP')}
+            disabled={partitioned}
+          >AP</button>
+          <button
+            className={`mode-pill${autoPartitionMode === 'CP' ? ' active' : ''}`}
+            onClick={() => onPartitionModeChange('CP')}
+            disabled={partitioned}
+          >CP</button>
+        </div>
+        <span className="cap-label">on heal:</span>
+        <div className="mode-segment">
+          <button
+            className={`mode-pill${healingHeuristic === 'lww' ? ' active' : ''}`}
+            onClick={() => setHealingHeuristic('lww')}
+          >LWW</button>
+          <button
+            className={`mode-pill${healingHeuristic === 'ts-wins' ? ' active' : ''}`}
+            onClick={() => setHealingHeuristic('ts-wins')}
+          >NestJS</button>
+          <button
+            className={`mode-pill${healingHeuristic === 'py-wins' ? ' active' : ''}`}
+            onClick={() => setHealingHeuristic('py-wins')}
+          >FastAPI</button>
+        </div>
         <div className="cap-divider" />
-        {demoMode ? (
-          <>
-            <label className="cap-label">Heal heuristic</label>
-            <select
-              className="cap-select"
-              value={healingHeuristic}
-              onChange={e => setHealingHeuristic(e.target.value as typeof healingHeuristic)}
-            >
-              <option value="lww">Last-write-wins (timestamp)</option>
-              <option value="ts-wins">NestJS always wins</option>
-              <option value="py-wins">FastAPI always wins</option>
-            </select>
-            <button className="cap-btn trigger-ap" onClick={() => onTrigger('AP')}>Trigger AP Partition</button>
-            <button className="cap-btn trigger-cp" onClick={() => onTrigger('CP')}>Trigger CP Partition</button>
-          </>
-        ) : (
-          <>
-            <label className="cap-label">Redis-down mode</label>
-            <select
-              className="cap-select"
-              value={autoPartitionMode}
-              onChange={e => onAutoPartitionModeChange(e.target.value as 'AP' | 'CP')}
-            >
-              <option value="AP">AP (diverge)</option>
-              <option value="CP">CP (freeze)</option>
-            </select>
-          </>
+        <button
+          className={`cap-btn trigger-${autoPartitionMode.toLowerCase()}`}
+          onClick={onTrigger}
+          disabled={partitioned}
+        >Simulate Partition</button>
+        <button
+          className="cap-btn heal"
+          onClick={onHeal}
+          disabled={!partitioned || partitionSource === 'auto'}
+        >Heal Partition</button>
+        {partitioned && (
+          <span className={`partition-banner ${capMode.toLowerCase()}`}>
+            {partitionSource === 'auto' ? 'DETECTED' : 'SIMULATED'} / {capMode}
+          </span>
         )}
-        {redisDots}
+        <div className="cap-divider" />
+        <span className="cap-label">NestJS</span><RedisDot connected={partitioned && partitionSource === 'manual' ? false : tsRedisConnected} />
+        <span className="cap-label">FastAPI</span><RedisDot connected={partitioned && partitionSource === 'manual' ? false : pyRedisConnected} />
       </div>
       <p className="cap-desc">
-        {demoMode
-          ? 'AP: both backends stay available, markers will diverge. CP: writes rejected, markers frozen.'
-          : 'Configures behavior when the Redis service fails. Partition activates automatically on Redis loss.'}
+        {partitioned
+          ? capMode === 'AP'
+            ? `Available: Replication suppressed, both backends accept writes and will diverge. When healed, ${healLabel}.`
+            : `Consistent: Writes rejected on both backends, no divergence, no availability. When healed, ${healLabel}.`
+          : autoPartitionMode === 'AP'
+            ? `Available: Both backends stay available, markers will diverge. When healed, ${healLabel}.`
+            : `Consistent: Writes rejected on both backends, no divergence, no availability. When healed, ${healLabel}.`}
       </p>
     </div>
   )

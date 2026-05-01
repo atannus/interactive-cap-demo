@@ -56,13 +56,11 @@ export default function App() {
               <div className="workspace">
                 <main className="main">
                   <PositionBox
-                    label="TypeScript"
                     badge="ts"
                     wsUrl="ws://localhost:3001/ws"
                     restUrl={`${TS_REST}/position`}
                   />
                   <PositionBox
-                    label="Python"
                     badge="py"
                     wsUrl="ws://localhost:8000/ws"
                     restUrl={`${PY_REST}/position`}

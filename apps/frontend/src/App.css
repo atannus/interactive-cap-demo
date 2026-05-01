@@ -275,33 +275,13 @@ nav a.active {
 /* ── CAP Controls row ── */
 .cap-controls-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
 .cap-label { font-size: 0.75rem; opacity: 0.6; white-space: nowrap; }
-.cap-select {
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 0.8rem;
-  padding: 0.3rem 0.6rem;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.cap-duration-input {
-  width: 52px;
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 0.8rem;
-  padding: 0.3rem 0.5rem;
-  border-radius: 4px;
-  text-align: right;
-}
+.cap-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .cap-btn.trigger-ap { border-color: rgba(220, 130, 0, 0.5); color: #dc8200; }
-.cap-btn.trigger-ap:hover { background: rgba(220, 130, 0, 0.08); }
+.cap-btn.trigger-ap:not(:disabled):hover { background: rgba(220, 130, 0, 0.08); }
 .cap-btn.trigger-cp { border-color: rgba(200, 40, 40, 0.5); color: #c82828; }
-.cap-btn.trigger-cp:hover { background: rgba(200, 40, 40, 0.08); }
+.cap-btn.trigger-cp:not(:disabled):hover { background: rgba(200, 40, 40, 0.08); }
 .cap-btn.heal { border-color: rgba(61, 184, 69, 0.5); color: #3db845; font-weight: 600; }
-.cap-btn.heal:hover { background: rgba(61, 184, 69, 0.08); }
+.cap-btn.heal:not(:disabled):hover { background: rgba(61, 184, 69, 0.08); }
 .partition-banner {
   padding: 0.25rem 0.75rem;
   border-radius: 4px;
@@ -311,7 +291,6 @@ nav a.active {
 }
 .partition-banner.ap { background: rgba(220, 130, 0, 0.12); color: #dc8200; border: 1px solid rgba(220, 130, 0, 0.3); }
 .partition-banner.cp { background: rgba(200, 40, 40, 0.12); color: #c82828; border: 1px solid rgba(200, 40, 40, 0.3); }
-.cap-heuristic-label { font-size: 0.75rem; opacity: 0.5; font-family: var(--mono); }
 
 /* ── Mode Segment ── */
 .mode-segment {
